@@ -45,17 +45,12 @@ func run(args []string) error {
 	loadDotEnv(filepath.Join(projectDir, ".env"))
 	loadDotEnv(".env")
 
-	apiKey := os.Getenv("DEEPSEEK_API_KEY")
-	if apiKey == "" {
-		return fmt.Errorf("env DEEPSEEK_API_KEY belum di-set")
-	}
-	model := os.Getenv("DEEPSEEK_MODEL")
-	if model == "" {
-		model = "deepseek-chat"
-	}
 	promptDir := os.Getenv("PRDGEN_PROMPT_DIR")
 
-	provider := llm.NewDeepSeekProvider(apiKey, model)
+	provider, err := buildProvider()
+	if err != nil {
+		return err
+	}
 	runner := &pipeline.Runner{Provider: provider, PromptDir: promptDir}
 
 	s, err := store.New(projectDir)
@@ -78,6 +73,44 @@ func run(args []string) error {
 	default:
 		printUsage()
 		return fmt.Errorf("perintah tidak dikenal: %s", cmd)
+	}
+}
+
+// buildProvider memilih provider LLM berdasarkan env var LLM_PROVIDER
+// ("deepseek" default, atau "gemini"). Ditaruh di satu tempat supaya
+// nambah provider baru di masa depan cukup nambah satu case lagi di sini
+// tanpa nyentuh logic pipeline sama sekali (lihat internal/llm.Provider).
+func buildProvider() (llm.Provider, error) {
+	name := strings.ToLower(strings.TrimSpace(os.Getenv("LLM_PROVIDER")))
+	if name == "" {
+		name = "deepseek"
+	}
+
+	switch name {
+	case "deepseek":
+		apiKey := os.Getenv("DEEPSEEK_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("env DEEPSEEK_API_KEY belum di-set")
+		}
+		model := os.Getenv("DEEPSEEK_MODEL")
+		if model == "" {
+			model = "deepseek-chat"
+		}
+		return llm.NewDeepSeekProvider(apiKey, model), nil
+
+	case "gemini":
+		apiKey := os.Getenv("GEMINI_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("env GEMINI_API_KEY belum di-set")
+		}
+		model := os.Getenv("GEMINI_MODEL")
+		if model == "" {
+			model = "gemini-flash-latest"
+		}
+		return llm.NewGeminiProvider(apiKey, model), nil
+
+	default:
+		return nil, fmt.Errorf("LLM_PROVIDER tidak dikenal: %q (pilihan: deepseek, gemini)", name)
 	}
 }
 
@@ -106,8 +139,11 @@ sudah di-generate ada bagian yang salah atau kurang pas -- kasih feedback
 bebas, dokumen direvisi, kamu review hasilnya dulu sebelum ditimpa ke file.
 
 Env vars:
-  DEEPSEEK_API_KEY    (wajib) API key DeepSeek
+  LLM_PROVIDER        (opsional, default "deepseek") pilih "deepseek" atau "gemini"
+  DEEPSEEK_API_KEY    (wajib kalau LLM_PROVIDER=deepseek) API key DeepSeek
   DEEPSEEK_MODEL      (opsional, default "deepseek-chat")
+  GEMINI_API_KEY      (wajib kalau LLM_PROVIDER=gemini) API key Gemini (Google AI Studio)
+  GEMINI_MODEL        (opsional, default "gemini-flash-latest")
   PRDGEN_PROMPT_DIR   (opsional) folder berisi *.txt prompt custom, override default`)
 }
 
