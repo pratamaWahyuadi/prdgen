@@ -18,7 +18,18 @@ Structure:
    untuk sebuah keputusan dan discovery TIDAK berhasil menggali preferensi
    lebih jauh, kamu boleh merekomendasikan pilihan sendiri -- tapi WAJIB
    tandai dengan jelas sebagai "🔶 Asumsi (belum dikonfirmasi user)" di
-   baris itu, jangan disamarkan seolah itu keputusan yang sudah pasti.)
+   baris itu, jangan disamarkan seolah itu keputusan yang sudah pasti.
+
+   Sub-section WAJIB "Koneksi & Driver Database" di dalam section ini,
+   pin sampai level konkret: nama package/driver persis (contoh: "pgx/v5
+   native pool, BUKAN database/sql"), dan strategi instantiation-nya
+   ("SATU *pgxpool.Pool dibuat sekali saat startup, di-inject ke semua
+   repository lewat constructor -- dilarang membuat pool/koneksi baru di
+   file lain"). Kalau discovery tidak menggali sampai level ini, isi
+   dengan asumsi paling aman dan tandai "🔶 Asumsi" seperti aturan di
+   atas -- JANGAN dibiarkan kosong/implisit, karena baris inilah yang
+   akan dikutip verbatim oleh ERD, Coding Plan, dan GitHub Issues supaya
+   tidak ada agent lain yang menebak driver sendiri-sendiri.)
 8. Milestones & Timeline
 9. Risks & Open Questions
 10. Out of Scope

@@ -9,6 +9,17 @@ memilih ORM/code-gen tertentu (misal Prisma, sqlc), sesuaikan gaya definisi
 schema dengan tool tersebut (contoh: kalau Prisma, sebutkan juga potongan
 `schema.prisma`-nya selain SQL DDL biasa).
 
+WAJIB kutip ULANG secara verbatim di paling atas dokumen (sebelum ERD)
+sub-section "Koneksi & Driver Database" dari PRD (nama driver/package
+persis + strategi pool). Ini bukan basa-basi -- kalau kamu pakai sqlc,
+signature kode yang nanti di-generate (pgx.Pool vs *sql.DB) TERGANTUNG
+persis pada driver ini, jadi harus eksplisit di sini supaya agent API
+Contract dan Coding Plan setelah kamu tinggal mengutip, bukan menebak.
+Kalau PRD ternyata tidak menyebutkan ini sama sekali (harusnya sudah
+tidak terjadi kalau prompt PRD diikuti benar), buat asumsi paling aman,
+tandai "🔶 Asumsi", dan JANGAN lanjut membuat ERD sebelum asumsi ini
+ditulis eksplisit.
+
 Output wajib:
 1. ERD dalam format Mermaid.js.
 2. Penjelasan detail tiap tabel dan kolom (format tabel Markdown), mencakup:

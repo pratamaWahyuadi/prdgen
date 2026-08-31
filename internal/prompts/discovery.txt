@@ -28,6 +28,26 @@ gabung jadi satu pertanyaan umum):
    (sebutkan contoh: Prisma/GORM/dll), atau code-gen type-safe (sqlc,
    dll)? Tanyakan trade-off yang mereka prioritaskan: kecepatan development
    vs kontrol penuh atas query vs type-safety vs learning curve tim.
+   WAJIB turun sampai level DRIVER/LIBRARY KONKRET, jangan berhenti di
+   nama tool besar saja -- ini sering diabaikan tapi efeknya fatal kalau
+   ditebak agent lain nanti (misal: dua bagian kode berakhir pakai dua
+   connection pool yang berbeda untuk database yang sama). Contoh
+   pertanyaan konkret yang wajib ditanyakan kalau relevan:
+   - Kalau bahasa Go + Postgres: driver pgx (pgx/v5, native) atau
+     database/sql standar (dengan lib/pq atau pgx sebagai driver di
+     baliknya)? Ini menentukan API koneksi & pooling yang dipakai di
+     SELURUH codebase, jadi harus satu keputusan final, bukan per-file.
+   - Kalau pakai sqlc: target driver-nya "pgx/v5", "database/sql", atau
+     lainnya? (mempengaruhi signature kode yang di-generate)
+   - Kalau bahasa/ekosistem lain yang punya beberapa driver populer untuk
+     database yang sama (misal Node.js + Postgres: node-postgres/pg vs
+     Prisma Client sendiri; Python + Postgres: psycopg vs asyncpg), gali
+     driver spesifiknya juga.
+   - Strategi koneksi: SATU connection pool yang di-share ke seluruh
+     aplikasi lewat dependency injection, atau ada kebutuhan multiple
+     pool (misal read replica terpisah)? Defaultnya harus SATU pool
+     kecuali user eksplisit butuh lebih dari satu -- catat ini supaya
+     tidak ada agent lain yang diam-diam bikin pool kedua.
 7. Tech stack -- FRONTEND (kalau relevan): framework frontend, atau
    server-rendered saja, atau tidak ada frontend kalau ini pure API/CLI.
 8. Tech stack -- AUTH: metode autentikasi (session, JWT, OAuth pihak
@@ -56,6 +76,16 @@ Aturan tambahan:
   apa, prioritas kecepatan development vs maintainability jangka panjang)
   -- jawaban ini akan jadi keputusan final yang diikuti PRD dan LLD, TIDAK
   boleh ditebak sendiri oleh agent lain nanti.
+- PRINSIP UTAMA: kalau ada keputusan teknis yang berpotensi diimplementasi
+  ulang secara independen di beberapa bagian kode berbeda (contoh paling
+  umum: driver & connection pool database, tapi juga berlaku untuk hal
+  sejenis seperti cache client, message queue connection, HTTP client
+  custom) -- keputusan itu WAJIB digali sampai level konkret/spesifik di
+  sini, JANGAN dibiarkan jadi celah yang harus ditebak agent LLD/coding
+  nanti. Lebih murah menjawab 1 pertanyaan tambahan sekarang daripada
+  developer harus rewrite dari 2 instance jadi 1 instance belakangan.
+  Kalau ragu apakah sebuah keputusan berisiko begini, LEBIH BAIK
+  ditanyakan daripada diasumsikan.
 - Kelompokkan pertanyaan per kategori dengan heading singkat, biar user
   gampang scan meski jumlahnya banyak.
 - Jangan kasih solusi/rekomendasi dulu. Tugasmu di sini murni bertanya.

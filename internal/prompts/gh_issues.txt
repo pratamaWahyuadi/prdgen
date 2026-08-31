@@ -46,6 +46,18 @@ Cara memecah issue:
   Detail teknis dari Database Schema/API Contracts yang relevan (nama
   tabel/kolom, endpoint, format request/response) yang dibutuhkan supaya
   coding agent TIDAK perlu menebak-nebak atau membuka dokumen lain.
+  KHUSUS untuk issue yang menyentuh database/cache/queue: WAJIB sebutkan
+  eksplisit driver/package persis dan file sumber koneksi/pool yang harus
+  dipakai (ambil PERSIS dari sub-section "Koneksi & Driver Database" di
+  Coding Plan/PRD, contoh: "gunakan `*pgxpool.Pool` yang di-inject dari
+  `internal/db/db.go`, JANGAN membuat koneksi atau pool baru di file
+  ini"). Setiap issue yang berpotensi bikin coding agent menginisialisasi
+  koneksi database sendiri (terutama issue paling awal per package/domain
+  baru) WAJIB punya baris Acceptance Criteria eksplisit seperti
+  "- [ ] TIDAK membuat instance/pool koneksi database baru; reuse yang
+  sudah ada dari [file]" -- karena kalau ini ditebak beda-beda antar
+  issue (misal satu issue pakai pgx, issue lain pakai database/sql),
+  hasilnya double connection pool yang mahal untuk di-rewrite belakangan.
 
 - labels: minimal cantumkan label fase (misal "phase-1") dan tipe kerja
   (misal "backend", "database", "testing", "docs").

@@ -15,6 +15,14 @@ Aturan tech stack:
   (misal: struktur folder, pola dependency injection, strategi testing),
   baru kamu boleh isi dengan best practice yang idiomatik untuk bahasa/
   framework yang PRD pilih. Catat asumsi itu di bagian atas dokumen.
+- KHUSUS koneksi database/cache/queue (apapun yang seharusnya jadi shared
+  instance tunggal di seluruh aplikasi): WAJIB kutip verbatim sub-section
+  "Koneksi & Driver Database" dari PRD (nama driver/package persis +
+  strategi pool). JANGAN pernah membuat keputusan driver/pooling versimu
+  sendiri di sini walaupun PRD-nya kurang detail -- kalau PRD benar-benar
+  tidak menyebutkan, tulis asumsi paling aman di bagian atas dokumen DAN
+  pastikan asumsi itu konsisten dipakai di SETIAP fase yang menyentuh
+  database, bukan cuma di Fase 1.
 - Desain tetap harus modular dan testable: hal-hal eksternal (payment
   gateway, storage, provider pihak ketiga) sebaiknya di-abstraksi lewat
   interface/dependency injection sesuai idiom bahasa yang dipakai, supaya
@@ -33,6 +41,17 @@ Output wajib:
 - Ingatkan best practice relevan di tiap fase (contoh: "Fase 3, gunakan
   Dependency Injection di handler lewat constructor, jangan pakai global
   variable, biar gampang di-test").
+- Fase 1 WAJIB punya step eksplisit "Setup Koneksi Database (Single
+  Source of Truth)" yang menyebutkan PERSIS: nama file tempat pool/koneksi
+  diinisialisasi (contoh: `internal/db/db.go`), nama package/driver yang
+  dipakai, dan cara inject-nya ke layer lain (constructor parameter, bukan
+  global variable). Di SETIAP fase/step berikutnya yang menyentuh database
+  (repository, handler, worker, dst), WAJIB tulis instruksi eksplisit
+  "gunakan koneksi/pool dari [file Fase 1], JANGAN buat instance/pool
+  baru" -- ini untuk mencegah coding agent per-issue menebak driver
+  sendiri-sendiri dan berujung ada lebih dari satu connection pool
+  (misal satu pakai pgx, satu lagi pakai database/sql biasa) untuk
+  database yang sama.
 
 Aturan:
 - Semua nama tabel/kolom/field HARUS konsisten dengan Database Schema dan
