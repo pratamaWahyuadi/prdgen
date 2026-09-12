@@ -100,21 +100,52 @@ Ini alur lengkap dari nol sampai siap coding, buat 1 project baru:
 prdgen new ./nama-project
 ```
 
-Lo akan ditanya nulis ide aplikasi (bebas, boleh panjang, akhiri dengan
-baris kosong buat lanjut). Setelah itu sistem akan **nanya balik minimal
-15 pertanyaan** dikelompokkan per kategori (skala, timeline, budget, tech
-stack, auth, deployment, dst). Jawab sejujurnya -- kalau ada yang belum
-kepikiran, boleh jawab "belum mikir", itu juga informasi yang berguna
-(lebih baik daripada sistem menebak sendiri).
+Lo akan ditanya nulis ide aplikasi (akhiri dengan baris `EOF` lalu Enter, atau
+Ctrl+D). Setelah itu discovery berjalan DUA FASE terpisah dengan gate di
+antaranya:
 
-Setelah dijawab, sistem otomatis:
-1. Bikin **threat model** (analisis keamanan) berdasarkan ide + jawaban lo.
-   Ditampilkan, lo diminta konfirmasi lanjut atau tidak.
-2. Bikin **PRD final** yang menggabungkan semuanya, termasuk section
-   keamanan dari threat model tadi.
-3. Jalanin **validasi otomatis**: AI lain mengecek apakah PRD yang baru
-   jadi itu beneran konsisten sama jawaban yang lo kasih di awal (bukan
-   ngarang sendiri). Hasilnya disimpan terpisah, silakan dibaca.
+1. **Fase 1 — Discovery high-level** (8–12 pertanyaan): masalah & goal,
+   scope, skala kasar, timeline, budget, bahasa+framework, database engine,
+   auth, deployment, integrasi eksternal, data sensitif, sampai familiarity
+   tim. Jawab sejujurnya -- kalau ada yang belum kepikiran, boleh jawab
+   "belum mikir", itu juga informasi yang berguna (lebih baik daripada
+   sistem menebak sendiri). Dari jawaban ini disusun **Product Brief**
+   (`01b_product_brief.md`).
+2. **Gate eksplisit**: "lanjut ke deep-dive teknis, atau skip dan pakai
+   default eksplisit?"
+   - **Lanjut (y)** — Fase 2 menggali keputusan low-level yang berisiko
+     ditebak ulang per-issue oleh coding agent kalau tidak dikunci: driver
+     database & strategi pool, query layer, migration tool, cache/MQ/HTTP
+     client, config, testing, CI/CD, struktur folder (8–10 pertanyaan).
+   - **Skip (n)** — semua keputusan low-level diberi default eksplisit yang
+     ditulis ke `defaults.yaml`: setiap nilai dicatat dengan flag
+     `[ASSUMED]` + basisnya (familiarity tim kalau kejawab, default umum
+     stack kalau tidak). Asumsi jadi terkontrol & bisa diaudit, bukan
+     tersembunyi di badan PRD. PRD/LLD berikutnya wajib mengutipnya dan
+     coding agent dilarang bikin pool/driver/instance kedua untuk komponen
+     yang sama.
+
+Kenapa dipecah dua fase: sesi tunggal 15+ pertanyaan campur high-level &
+low-level bikin user kewalahan, jawab asal-asalan di pertanyaan akhir
+(padahal justru itu yang paling krusial), dan gak punya konteks jawab
+low-level karena arsitektur high-level belum keformulasi.
+
+Setelah discovery selesai, sistem otomatis:
+1. Bikin **threat model** (analisis keamanan, tiap item pakai ID stabil
+   T1/T2/... yang dikutip sampai ke GitHub issues) berdasarkan ide +
+   jawaban lo (termasuk deep-dive kalau diikuti). Ditampilkan, lo diminta
+   konfirmasi lanjut atau tidak.
+2. Bikin **PRD final** yang menggabungkan semuanya: section keamanan dari
+   threat model, sub-section "Koneksi & Driver Database" + "Instance
+   Terbagi Lain" (driver/library persis + strategi instance tunggal), dan
+   section 7.5 "Asumsi Teknis" (tabel semua keputusan low-level + status
+   user-confirmed / [ASSUMED] + aturan dilarang instance kedua & wajib
+   stop-and-ask kalau default gak cocok saat coding).
+3. Jalanin **validasi otomatis**: AI lain mengecek apakah PRD konsisten
+   sama jawaban discovery (termasuk menghitung coverage: pertanyaan mana
+   yang terjawab/kelewat, dan apakah yang "belum kepikiran" muncul di Open
+   Questions PRD -- bukan diisi tebakan). Hasilnya disimpan terpisah,
+   silakan dibaca.
 
 ### Langkah 2 -- LLD (Low-Level Design)
 
@@ -163,18 +194,23 @@ Detail di bagian command reference.
 ### `prdgen new` -- bikin PRD
 
 ```
-prdgen new <folder-project>
+prdgen new <project-dir>
 ```
 
-Menjalankan 4 tahap berurutan: **Discovery** (tanya-jawab) -> **Security
-Audit** (threat model) -> **PRD** (dokumen final) -> **Validasi PRD** (cek
-konsistensi otomatis).
+Menjalankan tahap berurutan: **Discovery Fase 1** (high-level) → **Product
+Brief** → **Gate deep-dive** (lanjut/skip) → **[Discovery Fase 2** deep-dive
+teknis *atau* **defaults.yaml** kalau skip**]** → **Security Audit**
+(threat model) → **PRD** (dokumen final) → **Validasi PRD** (cek
+konsistensi + coverage otomatis).
 
 Kalau folder project belum ada, otomatis dibuat. Kalau lo jalanin command
 ini lagi di folder yang sama dan sebagian tahap sudah selesai sebelumnya
 (misal kemarin sempat berhenti di tengah), otomatis **lanjut dari tahap
 terakhir yang belum selesai** -- tidak mengulang dari nol, tidak manggil
-AI lagi untuk tahap yang sudah beres. Lihat bagian resume di bawah.
+AI lagi untuk tahap yang sudah beres. Resume menghormati gate juga: kalau
+lo berhenti tepat setelah jawab fase 1, run berikutnya mulai dari Product
+Brief; kalau lo skip deep-dive (defaults.yaml sudah ada), run berikutnya
+langsung ke security. Lihat bagian resume di bawah.
 
 ### `prdgen lld` -- bikin Low-Level Design
 
@@ -197,6 +233,19 @@ Butuh `LLD_PLAN.md` sudah ada (hasil `prdgen lld`), dan butuh **GitHub CLI
 (`gh`) sudah terinstall dan login** (`gh auth login` sekali di awal).
 Argumen `owner/repo` opsional -- kalau tidak diisi, `gh` menebak repo dari
 folder git tempat lo menjalankan command.
+
+Sebelum issue dibuat, draft melewati **sanity check mekanis** (gratis,
+tanpa LLM): field `phase` tiap issue harus persis sama dengan nama fase
+heading di coding plan, dan issue yang menyentuh database/cache/queue
+wajib menyebut file sumber koneksi/instance yang dikunci di plan
+(anti-double-pool). Temuan ditampilkan sebagai warning; di mode review
+manual lo bisa langsung perbaiki lewat `e`, dan di mode `--yes` ini
+satu-satunya gerbang otomatis sebelum `gh issue create`.
+
+Selain itu, kalau `ISSUES_CREATED.log` berisi judul yang tidak ada di draft
+sekarang (tanda draft sudah di-regenerate/revisi setelah issue dibuat),
+prdgen mengumumkannya eksplisit -- sebelumnya kasus ini diam-diam bikin
+issue dobel atau issue pengganti gak pernah dibuat.
 
 Flag `--yes` (atau `-y`) bisa ditaruh di posisi mana saja (misal
 `prdgen issues ./proj --yes owner/repo` atau `prdgen issues ./proj owner/repo --yes`).
@@ -403,15 +452,19 @@ Semua tersimpan di folder project yang lo tentukan (`<folder-project>/`):
 | File | Dari command | Isi |
 |---|---|---|
 | `00_idea.md` | `new` | Ide mentah yang lo tulis di awal |
-| `01a_discovery_questions.md` | `new` | Pertanyaan discovery (tersimpan sebelum lo jawab) |
-| `01_discovery_qa.md` | `new` | Pertanyaan discovery + jawaban lo |
-| `02_threat_report.md` | `new` | Threat model dari Security Auditor |
-| `PRD.md` | `new` | PRD final |
-| `PRD_VALIDATION.md` | `new` | Laporan cross-check PRD vs jawaban discovery |
-| `03_schema.md` | `lld` | Database schema & ERD |
-| `04_api_contracts.md` | `lld` | Spesifikasi API |
-| `LLD_PLAN.md` | `lld` | Step-by-step coding plan |
-| `LLD_VALIDATION.md` | `lld` | Laporan cross-check tech stack: PRD vs schema/API/plan |
+| `01a_discovery_questions.md` | `new` | Pertanyaan discovery fase 1 (tersimpan sebelum lo jawab) |
+| `01_discovery_qa.md` | `new` | Pertanyaan fase 1 + jawaban lo |
+| `01b_product_brief.md` | `new` | Product Brief (ringkasan terstruktur fase 1) |
+| `01d_deep_dive_questions.md` | `new` | Pertanyaan deep-dive fase 2 (kalau lo pilih lanjut) |
+| `01c_deep_dive_qa.md` | `new` | Brief + pertanyaan deep-dive + jawaban lo (kalau lanjut) |
+| `defaults.yaml` | `new` | Default eksplisit semua keputusan low-level, flag `[ASSUMED]` + basis (kalau skip deep-dive) |
+| `02_threat_report.md` | `new` | Threat model dari Security Auditor (ID stabil T1, T2, ...) |
+| `PRD.md` | `new` | PRD final (termasuk section 7.5 Asumsi Teknis) |
+| `PRD_VALIDATION.md` | `new` | Laporan cross-check PRD vs discovery + coverage jawaban + audit flag [ASSUMED] |
+| `03_schema.md` | `lld` | Database schema & ERD + blok Konvensi Lintas-Tabel |
+| `04_api_contracts.md` | `lld` | Spesifikasi API + kolom auth per endpoint |
+| `LLD_PLAN.md` | `lld` | Step-by-step coding plan (Fase 1: koneksi SSoT + instance terbagi + konvensi error) |
+| `LLD_VALIDATION.md` | `lld` | Laporan cross-check tech stack: PRD vs schema/API/plan + instance non-DB |
 | `ISSUES.json` | `issues` | Draft GitHub issues (data terstruktur, bisa diedit manual) |
 | `ISSUES_CREATED.log` | `issues` | Catatan issue yang sudah berhasil dibuat di GitHub |
 
@@ -476,6 +529,20 @@ bukan cuma "kebetulan jalan":
   diinstruksikan tetap menggali detail lanjutan untuk kategori yang sudah
   disinggung di ide awal, bukan menganggapnya sudah cukup dan melewati
   kategori itu.
+- **Output model terpotong karena kehabisan token.** Finish reason model
+  (`length`/`MAX_TOKENS`) dideteksi sebelum dokumen disimpan -- dokumen
+  setengah jadi ditolak dengan error jelas, bukan tersimpan lalu meracuni
+  stage berikutnya sebagai konteks. Ditambah sanity check struktural
+  per dokumen (code fence gak ditutup, schema tanpa mermaid, plan tanpa
+  heading fase, API contracts tanpa endpoint) yang hasilnya ditampilkan
+  sebagai warning.
+- **Draft issues menyimpang dari coding plan.** Validasi mekanis (tanpa
+  LLM): field `phase` harus persis nama fase di plan; issue yang
+  menyentuh DB/cache/queue wajib menyebut file sumber koneksi yang
+  dikunci. Ini satu-satunya gerbang di mode `--yes`.
+- **Draft issues di-regenerate setelah sebagian issue dibuat.** Judul di
+  `ISSUES_CREATED.log` yang tidak match draft diumumkan eksplisit
+  (sebelumnya: issue dobel atau pengganti gak pernah dibuat, diam-diam).
 
 ---
 

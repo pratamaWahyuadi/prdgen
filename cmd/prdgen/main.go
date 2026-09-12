@@ -117,7 +117,7 @@ func buildProvider() (llm.Provider, error) {
 
 func printUsage() {
 	fmt.Println(`Pemakaian:
-  prdgen new <project-dir>                  discovery -> security audit -> PRD -> validasi PRD
+  prdgen new <project-dir>                  discovery (2 fase + gate) -> security audit -> PRD -> validasi PRD
   prdgen lld <project-dir>                  ERD -> API contracts -> coding plan -> validasi LLD
   prdgen issues <project-dir> [owner/repo] [--yes|-y]  generate GitHub issues dari LLD_PLAN.md
   prdgen revise <project-dir> [prd|schema|api|plan]  revisi dokumen berdasarkan feedback kamu
