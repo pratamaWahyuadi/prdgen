@@ -232,14 +232,18 @@ func (r *Runner) RunLLDPlan(ctx context.Context, prd, schema, apiContracts strin
 	return out, nil
 }
 
-func (r *Runner) RunValidatePRD(ctx context.Context, discoveryQA, prd string) (string, error) {
+// RunValidatePRD membandingkan draft PRD dengan seluruh hasil discovery --
+// fase 1 + fase 2 deep-dive (kalau ada) + defaults.yaml (kalau user skip) --
+// supaya validator bisa menilai coverage jawaban dan ketepatan flag
+// [ASSUMED], bukan cuma konsistensi fase 1.
+func (r *Runner) RunValidatePRD(ctx context.Context, discoveryCtx, prd string) (string, error) {
 	sys, err := r.loadPrompt(prompts.PRDConsistency)
 	if err != nil {
 		return "", fmt.Errorf("pipeline: load prd_consistency prompt: %w", err)
 	}
 	userContent := fmt.Sprintf(
-		"Hasil discovery (Q&A dengan user):\n%s\n\nDraft PRD:\n%s",
-		discoveryQA, prd,
+		"Hasil discovery lengkap (Q&A dengan user, termasuk deep-dive/defaults kalau ada):\n%s\n\nDraft PRD:\n%s",
+		discoveryCtx, prd,
 	)
 	out, err := r.complete(ctx, sys, userContent)
 	if err != nil {

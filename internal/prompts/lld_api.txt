@@ -11,6 +11,11 @@ Output wajib:
   - Happy Path (200/201 OK)
   - Unhappy Path/Error (400, 401, 404, 500), dengan format error konsisten
     (ada error code dan error message, standar dipakai di semua endpoint).
+- WAJIB sertakan AUTH per endpoint: tulis eksplisit endpoint mana yang
+  public, mana yang butuh auth (sebutkan mekanismenya: header Authorization
+  Bearer JWT, session cookie, API key), dan mana yang butuh role/permission
+  tertentu. Tanpa ini, tiap issue coding menebak sendiri cara proteksi tiap
+  endpoint -- hasilnya patchy auth (beberapa endpoint lupa diproteksi).
 
 Aturan:
 - Nama field di JSON HARUS konsisten dengan nama kolom di Database Schema
@@ -20,3 +25,9 @@ Aturan:
 - Jika ada celah logika di PRD yang mencegah pembuatan API contract yang
   solid, buat asumsi teknis paling aman dan catat di bagian paling atas
   dokumen.
+- RUJUK endpoint dengan "METHOD /path" (mis. "POST /api/events"), JANGAN
+  pakai nomor section dokumen ("API Contract 7.2") -- nomor section bergeser
+  saat dokumen direvisi; method+path tetap stabil dan bisa dicari di repo.
+- Format error WAJIB konsisten di SELURUH dokumen: satu skema JSON error
+  untuk semua endpoint (contoh: {"error": {"code": "VALIDATION_ERROR",
+  "message": "..."}}), bukan skema beda-beda per endpoint.

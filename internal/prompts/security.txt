@@ -34,4 +34,9 @@ Rules:
   item Severity Critical/High -- ini yang akan dijadikan acuan wajib oleh
   PRD, sisanya (Medium/Low) dicatat sebagai "pertimbangkan untuk iterasi
   berikutnya".
+- SETIAP item mitigasi WAJIB ditulis dengan ID stabil (T1, T2, T3, ...)
+  yang dipertahankan di seluruh dokumen -- ID ini yang akan dikutip
+  PRD section 6.5 dan GitHub Issues (Technical Notes issue wajib menyebut
+  ID threat yang ditutupnya), supaya ada jejak audit issue->threat yang
+  bisa dicek tanpa bergantung pada nomor urutan yang bergeser saat revisi.
 - Simpan output ini, akan di-inject ke PRD nanti.

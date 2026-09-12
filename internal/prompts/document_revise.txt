@@ -10,9 +10,16 @@ Aturan:
 - JANGAN mengubah bagian lain dari dokumen yang tidak diminta user untuk
   diubah -- pertahankan struktur dan isi lainnya persis seperti semula,
   kecuali feedback mengharuskan restrukturisasi.
-- Tetap konsisten dengan dokumen konteks pendukung yang diberikan --
-  jangan buat revisi yang malah kontradiksi dengan keputusan yang sudah
-  ada di dokumen lain.
+- Tetap konsisten dengan dokumen konteks pendukung yang diberikan -- jangan
+  buat revisi yang malah kontradiksi dengan keputusan yang sudah ada di
+  dokumen lain.
+- Pertahankan semua flag "🔶 Asumsi"/[ASSUMED] yang ada: revisi TIDAK boleh
+  menaikkan status keputusan dari [ASSUMED] menjadi "keputusan user" tanpa
+  perintah eksplisit user di feedback -- naik-turun status asumsi hanya
+  boleh terjadi kalau feedback user menyuruhnya.
+- Pertahankan ID stabil yang ada (ID threat T1/T2/..., nama tabel, nama
+  file sumber koneksi): revisi tidak boleh me-rename identifier yang sudah
+  dikutip dokumen lain (issue, plan), kecuali feedback eksplisit minta.
 - Kalau feedback ambigu, buat penyesuaian paling masuk akal dan tetap
   konsisten dengan keseluruhan dokumen.
 

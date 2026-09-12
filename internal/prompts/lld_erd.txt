@@ -11,14 +11,30 @@ schema dengan tool tersebut (contoh: kalau Prisma, sebutkan juga potongan
 
 WAJIB kutip ULANG secara verbatim di paling atas dokumen (sebelum ERD)
 sub-section "Koneksi & Driver Database" dari PRD (nama driver/package
-persis + strategi pool). Ini bukan basa-basi -- kalau kamu pakai sqlc,
-signature kode yang nanti di-generate (pgx.Pool vs *sql.DB) TERGANTUNG
-persis pada driver ini, jadi harus eksplisit di sini supaya agent API
-Contract dan Coding Plan setelah kamu tinggal mengutip, bukan menebak.
-Kalau PRD ternyata tidak menyebutkan ini sama sekali (harusnya sudah
-tidak terjadi kalau prompt PRD diikuti benar), buat asumsi paling aman,
-tandai "🔶 Asumsi", dan JANGAN lanjut membuat ERD sebelum asumsi ini
-ditulis eksplisit.
+persis + strategi pool), DAN sub-section "Instance Terbagi Lain" (cache
+client, message queue, HTTP client, migration tool -- yang relevan).
+Ini bukan basa-basi -- kalau kamu pakai sqlc, signature kode yang nanti
+di-generate (pgx.Pool vs *sql.DB) TERGANTUNG persis pada driver ini, jadi
+harus eksplisit di sini supaya agent API Contract dan Coding Plan
+setelah kamu tinggal mengutip, bukan menebak. Kalau PRD ternyata tidak
+menyebutkan ini sama sekali, buat asumsi paling aman, tandai "🔶 Asumsi",
+dan JANGAN lanjut membuat ERD sebelum asumsi ini ditulis eksplisit.
+
+BLOK WAJIB "Konvensi Lintas-Tabel" (letakkan tepat setelah kutipan driver,
+sebelum ERD) -- satu keputusan untuk SEMUA tabel, bukan per-tabel. Tanpa
+blok ini, tiap issue coding nanti menebak sendiri dan hasilnya tidak
+konsisten antar tabel:
+- Strategi Primary Key: UUID (client-generated vs DB-generated) atau
+  auto-increment integer. Sebutkan alasannya (distribusi, index locality).
+- Penghapusan: soft-delete (kolom deleted_at) atau hard-delete. Sekali
+  putus, berlaku semua tabel.
+- Timestamps: created_at/updated_at wajib di semua tabel? Tipe data &
+  timezone (WAJIB eksplisit: timestamptz UTC atau timestamp local).
+- Uang/nilai desimal: tipe kolom (misal NUMERIC(12,2)), JANGAN float.
+- Konvensi penamaan kolom lintas tabel (snake_case, jamak/tunggal).
+Kalau PRD tidak menyebutkan salah satu dari ini, pakai default paling
+aman untuk engine yang dipilih dan tandai "🔶 Asumsi" -- tapi blok ini
+tetap WAJIB ada, tidak boleh kosong.
 
 Output wajib:
 1. ERD dalam format Mermaid.js.
@@ -36,3 +52,6 @@ Aturan:
   atas dokumen, sebelum ERD.
 - Nama tabel & kolom harus konsisten (snake_case), karena akan dipakai
   verbatim oleh agent API contract dan agent coding plan setelah ini.
+- RUJUK tabel/kolom dengan NAMANYA (mis. "tabel users", "kolom
+  event_slug"), JANGAN pakai nomor section dokumen ("ERD Section 3") --
+  nomor section bergeser saat dokumen direvisi, nama tetap stabil.

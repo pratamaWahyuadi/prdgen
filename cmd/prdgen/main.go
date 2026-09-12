@@ -410,7 +410,20 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 
 		case pipeline.StageValidatePRD:
 			fmt.Println("\n[validate] mengecek konsistensi PRD vs hasil discovery...")
-			report, err := r.RunValidatePRD(ctx, discoveryQA, prd)
+			// Validator melihat SELURUH konteks discovery: fase 1 + deep-dive
+			// (kalau ada) + defaults.yaml (kalau skip) -- supaya coverage
+			// jawaban dan ketepatan flag [ASSUMED] bisa dinilai.
+			validateCtx := discoveryQA
+			if deepDiveQA != "" {
+				validateCtx = discoveryQA + "\n\n=== Jawaban Deep Dive ===\n" + deepDiveQA
+			} else if s.IsComplete(store.FileDefaultsYAML) {
+				v, err := s.Load(store.FileDefaultsYAML)
+				if err != nil {
+					return err
+				}
+				validateCtx = discoveryQA + "\n\n=== defaults.yaml (user skip deep-dive) ===\n" + v
+			}
+			report, err := r.RunValidatePRD(ctx, validateCtx, prd)
 			if err != nil {
 				fmt.Printf("⚠️  Validator gagal jalan (%v), tapi PRD tetap tersimpan.\n", err)
 				break

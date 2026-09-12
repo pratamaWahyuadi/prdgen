@@ -46,18 +46,23 @@ Cara memecah issue:
   Detail teknis dari Database Schema/API Contracts yang relevan (nama
   tabel/kolom, endpoint, format request/response) yang dibutuhkan supaya
   coding agent TIDAK perlu menebak-nebak atau membuka dokumen lain.
-  KHUSUS untuk issue yang menyentuh database/cache/queue: WAJIB sebutkan
-  eksplisit driver/package persis dan file sumber koneksi/pool yang harus
-  dipakai (ambil PERSIS dari sub-section "Koneksi & Driver Database" di
-  Coding Plan/PRD, contoh: "gunakan `*pgxpool.Pool` yang di-inject dari
-  `internal/db/db.go`, JANGAN membuat koneksi atau pool baru di file
-  ini"). Setiap issue yang berpotensi bikin coding agent menginisialisasi
-  koneksi database sendiri (terutama issue paling awal per package/domain
-  baru) WAJIB punya baris Acceptance Criteria eksplisit seperti
-  "- [ ] TIDAK membuat instance/pool koneksi database baru; reuse yang
-  sudah ada dari [file]" -- karena kalau ini ditebak beda-beda antar
-  issue (misal satu issue pakai pgx, issue lain pakai database/sql),
-  hasilnya double connection pool yang mahal untuk di-rewrite belakangan.
+  KHUSUS untuk issue yang menyentuh database/cache/queue/HTTP client:
+  WAJIB sebutkan eksplisit driver/library persis dan file sumber
+  koneksi/instance yang harus dipakai (ambil PERSIS dari sub-section
+  "Koneksi & Driver Database"/"Instance Terbagi Lain" di PRD/Coding Plan,
+  contoh: "gunakan `*pgxpool.Pool` yang di-inject dari `internal/db/db.go`,
+  JANGAN membuat koneksi atau pool baru di file ini"). Setiap issue yang
+  berpotensi bikin coding agent menginisialisasi koneksi/instance sendiri
+  (terutama issue paling awal per package/domain baru) WAJIB punya baris
+  Acceptance Criteria eksplisit seperti "- [ ] TIDAK membuat instance/pool
+  koneksi database baru; reuse yang sudah ada dari [file]" -- karena
+  kalau ini ditebak beda-beda antar issue, hasilnya double connection pool
+  yang mahal untuk di-rewrite belakangan.
+  KHUSUS issue yang implement/menyentuh mitigasi security dari section
+  6.5 PRD ("Prioritas Wajib untuk MVP" di threat report): WAJIB kutip
+  threat item yang relevan (vector + mitigasi) di Technical Notes issue
+  ini, supaya mitigasi Critical/High tidak menguap di antara plan->issue
+  dan ada jejak audit yang jelas issue mana yang menutup threat mana.
 
 - labels: minimal cantumkan label fase (misal "phase-1") dan tipe kerja
   (misal "backend", "database", "testing", "docs").
