@@ -167,7 +167,7 @@ func extractYesFlag(args []string) ([]string, bool) {
 func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, reader *bufio.Reader) error {
 	fmt.Println("== prdgen: PRD pipeline ==")
 
-	var rawIdea, discoveryQA, threatReport, prd string
+	var rawIdea, discoveryQA, productBrief, deepDiveQA, threatReport, prd string
 	stage := determineStartStage(s)
 
 	if stage != pipeline.StageDiscovery {
@@ -187,6 +187,20 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			return err
 		}
 		discoveryQA = v
+	}
+	if s.IsComplete(store.FileProductBrief) {
+		v, err := s.Load(store.FileProductBrief)
+		if err != nil {
+			return err
+		}
+		productBrief = v
+	}
+	if s.IsComplete(store.FileDeepDiveQA) {
+		v, err := s.Load(store.FileDeepDiveQA)
+		if err != nil {
+			return err
+		}
+		deepDiveQA = v
 	}
 	if s.IsComplete(store.FileThreatReport) {
 		v, err := s.Load(store.FileThreatReport)
@@ -246,7 +260,7 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				}
 			}
 
-			fmt.Println("\n--- Pertanyaan Discovery ---")
+			fmt.Println("\n--- Pertanyaan Discovery (Fase 1: High-Level) ---")
 			fmt.Println(questions)
 			fmt.Println("\nJawab semua pertanyaan di atas (akhiri dengan baris berisi EOF lalu Enter, atau Ctrl+D):")
 			answers := readMultiline(reader)
@@ -255,9 +269,103 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				return err
 			}
 
+		case pipeline.StageDiscoveryBrief:
+			fmt.Println("\n[brief] menyusun Product Brief dari jawaban fase 1...")
+			brief, err := r.RunDiscoveryBrief(ctx, rawIdea, discoveryQA)
+			if err != nil {
+				return fmt.Errorf("stage discovery_brief: %w", err)
+			}
+			productBrief = brief
+			path, err := s.Save(store.FileProductBrief, productBrief)
+			if err != nil {
+				return err
+			}
+			fmt.Println("\n--- Product Brief ---")
+			fmt.Println(productBrief)
+			fmt.Printf("\nTersimpan di %s\n", path)
+
+		case pipeline.StageDiscoveryGate:
+			// Gate eksplisit antara fase high-level dan deep-dive teknis.
+			// User yang kewalahan boleh stop di sini; semua keputusan
+			// low-level nanti diberi default eksplisit (defaults.yaml),
+			// bukan ditebak diam-diam oleh agent.
+			fmt.Println("\n--- Gate: Deep-Dive Teknis ---")
+			fmt.Println("Product Brief di atas mengunci keputusan high-level (bahasa, framework,")
+			fmt.Println("database engine, deployment). Yang BELUM dikunci: keputusan low-level yang")
+			fmt.Println("berisiko ditebak ulang per-issue oleh coding agent nanti -- driver & pool,")
+			fmt.Println("query layer, migration tool, cache/MQ/HTTP client, config, testing, CI/CD,")
+			fmt.Println("struktur folder.")
+			choice := askDeepDiveChoice(reader)
+			switch choice {
+			case "y":
+				// Lanjut ke Technical Deep Dive (fase 2).
+				stage = pipeline.StageDiscoveryDeep
+				continue
+			case "n":
+				// Skip deep-dive: tulis defaults.yaml berisi default
+				// eksplisit berbasis familiarity tim (dari Product Brief),
+				// lalu langsung ke security. PRD/LLD wajib mengutip
+				// file ini dan menandai semua nilainya [ASSUMED].
+				fmt.Println("\n[gate] deep-dive di-skip. Menulis defaults.yaml dengan default eksplisit...")
+				if err := writeDefaultsFromBrief(ctx, r, s, rawIdea, productBrief); err != nil {
+					return err
+				}
+				stage = pipeline.StageSecurity
+				continue
+			default:
+				return fmt.Errorf("dibatalkan oleh user di gate deep-dive")
+			}
+
+		case pipeline.StageDiscoveryDeep:
+			var questions string
+			if s.IsComplete(store.FileDeepDiveQuestions) {
+				fmt.Println("\n[deep-dive] ditemukan pertanyaan dari sesi sebelumnya, lanjut dari situ.")
+				v, err := s.Load(store.FileDeepDiveQuestions)
+				if err != nil {
+					return err
+				}
+				questions = v
+			} else {
+				fmt.Println("\n[deep-dive] menghubungi model (fase 2: keputusan low-level)...")
+				v, err := r.RunDiscoveryDeep(ctx, rawIdea, productBrief)
+				if err != nil {
+					return fmt.Errorf("stage discovery_deep: %w", err)
+				}
+				questions = v
+				if _, err := s.Save(store.FileDeepDiveQuestions, questions); err != nil {
+					return err
+				}
+			}
+
+			fmt.Println("\n--- Pertanyaan Technical Deep Dive (Fase 2: Low-Level) ---")
+			fmt.Println(questions)
+			fmt.Println("\nJawab semua pertanyaan di atas (akhiri dengan baris berisi EOF lalu Enter, atau Ctrl+D):")
+			answers := readMultiline(reader)
+			deepDiveQA = productBrief + "\n\n=== Pertanyaan Deep Dive ===\n" + questions + "\n\n=== Jawaban User ===\n" + answers
+			if _, err := s.Save(store.FileDeepDiveQA, deepDiveQA); err != nil {
+				return err
+			}
+			// Deep-dive selesai: hapus defaults.yaml generik kalau ada dari
+			// run sebelumnya yang skip -- keputusan low-level sekarang
+			// dijawab user langsung, file default jadi menyesatkan.
+			if s.Exists(store.FileDefaultsYAML) {
+				if err := os.Remove(filepath.Join(s.Dir, store.FileDefaultsYAML)); err != nil {
+					fmt.Printf("⚠️  Gagal menghapus defaults.yaml usang (abaikan kalau memang mau disimpan): %v\n", err)
+				} else {
+					fmt.Println("[deep-dive] defaults.yaml (dari mode skip) dihapus -- keputusan low-level sudah dijawab eksplisit.")
+				}
+			}
+
 		case pipeline.StageSecurity:
 			fmt.Println("\n[security] menjalankan threat modeling...")
-			report, err := r.RunSecurity(ctx, rawIdea, discoveryQA)
+			// Konteks keamanan: seluruh hasil discovery (fase 1 + deep-dive
+			// kalau ada) supaya threat spesifik ke driver/auth/deployment
+			// yang benar-benar dipilih, bukan generik.
+			securityCtx := discoveryQA
+			if deepDiveQA != "" {
+				securityCtx = discoveryQA + "\n\n=== Hasil Deep Dive (low-level) ===\n" + deepDiveQA
+			}
+			report, err := r.RunSecurity(ctx, rawIdea, securityCtx)
 			if err != nil {
 				return fmt.Errorf("stage security: %w", err)
 			}
@@ -276,7 +384,18 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 
 		case pipeline.StagePRD:
 			fmt.Println("\n[prd] menggenerate PRD final...")
-			doc, err := r.RunPRD(ctx, rawIdea, discoveryQA, threatReport)
+			// Keputusan low-level: dari deep-dive (kalau user ikut) atau
+			// defaults.yaml (kalau skip) -- dua-duanya wajib dikutip PRD
+			// di section Asumsi Teknis, jangan ditebak ulang.
+			deepDiveCtx := deepDiveQA
+			if deepDiveCtx == "" && s.IsComplete(store.FileDefaultsYAML) {
+				v, err := s.Load(store.FileDefaultsYAML)
+				if err != nil {
+					return err
+				}
+				deepDiveCtx = "ISI defaults.yaml (user skip deep-dive; SEMUA nilai di bawah berstatus assumed/[ASSUMED]):\n" + v
+			}
+			doc, err := r.RunPRD(ctx, rawIdea, discoveryQA, threatReport, deepDiveCtx)
 			if err != nil {
 				return fmt.Errorf("stage prd: %w", err)
 			}
@@ -309,9 +428,24 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 	return nil
 }
 
+// determineStartStage menentukan stage mulai untuk `prdgen new` berdasarkan
+// file mana yang sudah ada. Urutan cek MENGHORMATI gate deep-dive: kalau
+// deep-dive di-skip (tidak ada 01c_deep_dive_qa.md) tapi defaults.yaml sudah
+// ditulis, itu tanda user melewati gate dengan jalan "skip", jadi resume
+// langsung ke security -- bukan memaksa user menjawab deep-dive lagi.
 func determineStartStage(s *store.Store) pipeline.Stage {
 	if !s.IsComplete(store.FileDiscoveryQA) {
 		return pipeline.StageDiscovery
+	}
+	if !s.IsComplete(store.FileProductBrief) {
+		return pipeline.StageDiscoveryBrief
+	}
+	if !s.IsComplete(store.FileDeepDiveQA) && !s.IsComplete(store.FileDefaultsYAML) {
+		// Belum ada jawaban deep-dive DAN belum ada defaults.yaml -> user
+		// belum melewati gate sama sekali (atau berhenti tepat di gate).
+		// Kedua file ini adalah "tanda lewat gate" karena keduanya hanya
+		// ditulis SETELAH user memilih di gate.
+		return pipeline.StageDiscoveryGate
 	}
 	if !s.IsComplete(store.FileThreatReport) {
 		return pipeline.StageSecurity
@@ -323,6 +457,49 @@ func determineStartStage(s *store.Store) pipeline.Stage {
 		return pipeline.StageValidatePRD
 	}
 	return pipeline.StageDone
+}
+
+// askDeepDiveChoice menanyakan gate eksplisit antara fase 1 (high-level) dan
+// fase 2 (deep-dive teknis). Return "y"/"n"/"q" (q = berhenti).
+func askDeepDiveChoice(reader *bufio.Reader) string {
+	fmt.Println("\nMau lanjut ke deep-dive teknis (driver, connection pool, query layer,")
+	fmt.Print("migration tool, cache/MQ client, config, testing, CI/CD, struktur folder)? (y=lanjut, n=skip & pakai default eksplisit, q=berhenti): ")
+	line, _ := reader.ReadString('\n')
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return "y"
+	case "n", "no":
+		return "n"
+	case "q", "quit":
+		return "q"
+	default:
+		// Input tidak dikenal: anggap berhenti, lebih aman daripada
+		// meneruskan user ke deep-dive yang tidak mereka pilih.
+		return "q"
+	}
+}
+
+// writeDefaultsFromBrief dipanggil saat user SKIP deep-dive di gate: generate
+// defaults.yaml berisi default eksplisit untuk semua keputusan low-level
+// (berbasis familiarity tim di Product Brief), lalu tampilkan ke user
+// sebelum disimpan supaya tetap ada momen review.
+func writeDefaultsFromBrief(ctx context.Context, r *pipeline.Runner, s *store.Store, rawIdea, productBrief string) error {
+	out, err := r.RunGenerateDefaults(ctx, rawIdea, productBrief)
+	if err != nil {
+		return err
+	}
+	fmt.Println("\n--- defaults.yaml (default eksplisit, semua flagged [ASSUMED]) ---")
+	fmt.Println(out)
+	path, err := s.Save(store.FileDefaultsYAML, out)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("\nTersimpan di %s\n", path)
+	fmt.Println("PRD dan LLD berikutnya WAJIB mengutip file ini di section Asumsi Teknis")
+	fmt.Println("dan menandai semua nilainya [ASSUMED] -- coding agent dilarang membuat")
+	fmt.Println("instance/pool/driver kedua untuk komponen yang sama, dan wajib stop &")
+	fmt.Println("tanya kalau default ternyata tidak cocok saat coding.")
+	return nil
 }
 
 // determineLLDStartStage menentukan stage mulai untuk `prdgen lld`

@@ -42,7 +42,7 @@ func TestRunPRD_InjectsAllContext(t *testing.T) {
 	mock := &llm.MockProvider{Responses: []string{"# PRD\n..."}}
 	r := &Runner{Provider: mock}
 
-	out, err := r.RunPRD(context.Background(), "idea", "qa", "threat report XYZ")
+	out, err := r.RunPRD(context.Background(), "idea", "qa", "threat report XYZ", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,6 +95,65 @@ func TestRunLLDPlan_UsesAllPreviousOutputs(t *testing.T) {
 		if !strings.Contains(content, want) {
 			t.Errorf("expected %q in plan context, got: %s", want, content)
 		}
+	}
+}
+
+func TestRunPRD_InjectsDeepDiveContext(t *testing.T) {
+	mock := &llm.MockProvider{Responses: []string{"# PRD\n..."}}
+	r := &Runner{Provider: mock}
+
+	_, err := r.RunPRD(context.Background(), "idea", "qa", "threat", "driver: pgx/v5 native pool")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content := mock.LastRequest.Messages[0].Content
+	if !strings.Contains(content, "driver: pgx/v5 native pool") {
+		t.Errorf("expected deep-dive context injected into PRD, got: %s", content)
+	}
+	if !strings.Contains(content, "Asumsi Teknis") {
+		t.Errorf("expected Asumsi Teknis instruction in PRD context, got: %s", content)
+	}
+}
+
+func TestRunDiscoveryBrief_InjectsQA(t *testing.T) {
+	mock := &llm.MockProvider{Responses: []string{"# Product Brief\n..."}}
+	r := &Runner{Provider: mock}
+
+	_, err := r.RunDiscoveryBrief(context.Background(), "ide app", "Q: skala? A: 10k user")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content := mock.LastRequest.Messages[0].Content
+	if !strings.Contains(content, "10k user") {
+		t.Errorf("expected discovery QA in brief context, got: %s", content)
+	}
+}
+
+func TestRunDiscoveryDeep_InjectsBrief(t *testing.T) {
+	mock := &llm.MockProvider{Responses: []string{"1. Driver DB apa?"}}
+	r := &Runner{Provider: mock}
+
+	_, err := r.RunDiscoveryDeep(context.Background(), "ide app", "# Product Brief\nstack: Go + Postgres")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content := mock.LastRequest.Messages[0].Content
+	if !strings.Contains(content, "Go + Postgres") {
+		t.Errorf("expected product brief in deep-dive context, got: %s", content)
+	}
+}
+
+func TestRunGenerateDefaults_InjectsBrief(t *testing.T) {
+	mock := &llm.MockProvider{Responses: []string{"stack:\n  language: Go"}}
+	r := &Runner{Provider: mock}
+
+	_, err := r.RunGenerateDefaults(context.Background(), "ide app", "# Product Brief\nfamiliarity: lib/pq")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	content := mock.LastRequest.Messages[0].Content
+	if !strings.Contains(content, "lib/pq") {
+		t.Errorf("expected product brief (familiarity) in defaults context, got: %s", content)
 	}
 }
 

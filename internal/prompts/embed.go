@@ -7,13 +7,16 @@ import (
 	"path/filepath"
 )
 
-//go:embed discovery.txt security.txt prd.txt prd_consistency.txt lld_erd.txt lld_api.txt lld_plan.txt lld_consistency.txt gh_issues.txt gh_issue_revise.txt document_revise.txt
+//go:embed discovery.txt discovery_brief.txt discovery_deep.txt defaults_gen.txt security.txt prd.txt prd_consistency.txt lld_erd.txt lld_api.txt lld_plan.txt lld_consistency.txt gh_issues.txt gh_issue_revise.txt document_revise.txt defaults.yaml
 var embedded embed.FS
 
 type Name string
 
 const (
 	Discovery      Name = "discovery"
+	DiscoveryBrief Name = "discovery_brief"
+	DiscoveryDeep  Name = "discovery_deep"
+	DefaultsGen    Name = "defaults_gen"
 	Security       Name = "security"
 	PRD            Name = "prd"
 	PRDConsistency Name = "prd_consistency"
@@ -28,6 +31,9 @@ const (
 
 var filenames = map[Name]string{
 	Discovery:      "discovery.txt",
+	DiscoveryBrief: "discovery_brief.txt",
+	DiscoveryDeep:  "discovery_deep.txt",
+	DefaultsGen:    "defaults_gen.txt",
 	Security:       "security.txt",
 	PRD:            "prd.txt",
 	PRDConsistency: "prd_consistency.txt",

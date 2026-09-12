@@ -73,6 +73,68 @@ func (r *Runner) RunDiscovery(ctx context.Context, rawIdea string) (string, erro
 	return out, nil
 }
 
+// RunDiscoveryBrief menyusun Product Brief (ringkasan terstruktur jawaban
+// fase 1) SETELAH user menjawab semua pertanyaan discovery. Brief ini jadi
+// konteks ringkas untuk fase deep-dive dan PRD -- menggantikan keharusan
+// membaca ulang seluruh Q&A panjang.
+func (r *Runner) RunDiscoveryBrief(ctx context.Context, rawIdea, discoveryQA string) (string, error) {
+	sys, err := r.loadPrompt(prompts.DiscoveryBrief)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: load discovery_brief prompt: %w", err)
+	}
+	userContent := fmt.Sprintf(
+		"Ide aplikasi:\n%s\n\nPertanyaan discovery fase 1 beserta jawaban user:\n%s",
+		rawIdea, discoveryQA,
+	)
+	out, err := r.complete(ctx, sys, userContent)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: discovery_brief stage: %w", err)
+	}
+	return out, nil
+}
+
+// RunDiscoveryDeep menggali keputusan low-level (driver, pool, query layer,
+// migration, cache, MQ, HTTP client, config, testing, CI/CD, struktur
+// folder) SETELAH user melewati gate dan memilih lanjut deep-dive. Input
+// menyertakan Product Brief supaya pertanyaan deep-dive membumi di konteks
+// project, bukan generik.
+func (r *Runner) RunDiscoveryDeep(ctx context.Context, rawIdea, productBrief string) (string, error) {
+	sys, err := r.loadPrompt(prompts.DiscoveryDeep)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: load discovery_deep prompt: %w", err)
+	}
+	userContent := fmt.Sprintf(
+		"Ide aplikasi:\n%s\n\nProduct Brief hasil fase 1:\n%s",
+		rawIdea, productBrief,
+	)
+	out, err := r.complete(ctx, sys, userContent)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: discovery_deep stage: %w", err)
+	}
+	return out, nil
+}
+
+// RunGenerateDefaults mengisi defaults.yaml saat user SKIP Technical Deep
+// Dive. Semua keputusan low-level diberi default eksplisit berbasis
+// familiarity tim (bukan best-practice generik), flagged assumed:true --
+// supaya asumsi terkontrol dan bisa diaudit, bukan tersembunyi di badan
+// PRD/LLD.
+func (r *Runner) RunGenerateDefaults(ctx context.Context, rawIdea, productBrief string) (string, error) {
+	sys, err := r.loadPrompt(prompts.DefaultsGen)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: load defaults_gen prompt: %w", err)
+	}
+	userContent := fmt.Sprintf(
+		"Ide aplikasi:\n%s\n\nProduct Brief hasil discovery fase 1:\n%s",
+		rawIdea, productBrief,
+	)
+	out, err := r.complete(ctx, sys, userContent)
+	if err != nil {
+		return "", fmt.Errorf("pipeline: defaults_gen stage: %w", err)
+	}
+	return out, nil
+}
+
 func (r *Runner) RunSecurity(ctx context.Context, rawIdea, discoveryQA string) (string, error) {
 	sys, err := r.loadPrompt(prompts.Security)
 	if err != nil {
@@ -89,13 +151,21 @@ func (r *Runner) RunSecurity(ctx context.Context, rawIdea, discoveryQA string) (
 	return out, nil
 }
 
-func (r *Runner) RunPRD(ctx context.Context, rawIdea, discoveryQA, threatReport string) (string, error) {
+// RunPRD menghasilkan PRD final. Parameter deepDiveCtx berisi hasil Technical
+// Deep Dive (kalau user ikut) ATAU isi defaults.yaml (kalau user skip) --
+// dua-duanya adalah sumber keputusan low-level yang HARUS dikutip PRD,
+// bukan ditebak ulang.
+func (r *Runner) RunPRD(ctx context.Context, rawIdea, discoveryQA, threatReport, deepDiveCtx string) (string, error) {
 	sys, err := r.loadPrompt(prompts.PRD)
 	if err != nil {
 		return "", fmt.Errorf("pipeline: load prd prompt: %w", err)
 	}
+	deepSection := ""
+	if strings.TrimSpace(deepDiveCtx) != "" {
+		deepSection = "\n\n---\nHASIL DEEP-DIVE / DEFAULT EKSPLISIT (keputusan low-level -- sumber WAJIB dikutip di section Asumsi Teknis, jangan ditebak ulang):\n" + deepDiveCtx + "\n"
+	}
 	userContent := fmt.Sprintf(
-		"Ide aplikasi:\n%s\n\nHasil discovery (Q&A dengan user):\n%s\n\nThreat report dari Security Auditor:\n%s\n\n"+
+		"Ide aplikasi:\n%s\n\nHasil discovery (Q&A dengan user):\n%s\n\nThreat report dari Security Auditor:\n%s%s\n\n"+
 			"---\nPENGINGAT PENTING SEBELUM MENULIS PRD:\n"+
 			"Semua jawaban user di hasil discovery di atas adalah KEPUTUSAN FINAL, "+
 			"bukan saran yang boleh diganti. Sebelum menulis section 7 (Tech Stack), "+
@@ -104,7 +174,7 @@ func (r *Runner) RunPRD(ctx context.Context, rawIdea, discoveryQA, threatReport 
 			"mengikuti jawaban tersebut, bukan pilihanmu sendiri. Kalau user bilang "+
 			"\"bebas\"/\"terserah\" untuk sesuatu, tandai keputusanmu dengan "+
 			"\"🔶 Asumsi (belum dikonfirmasi user)\".\n\nJawaban discovery (diulang untuk referensi):\n%s",
-		rawIdea, discoveryQA, threatReport, discoveryQA,
+		rawIdea, discoveryQA, threatReport, deepSection, discoveryQA,
 	)
 	out, err := r.complete(ctx, sys, userContent)
 	if err != nil {

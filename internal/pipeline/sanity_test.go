@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -14,13 +15,13 @@ func TestIsTruncated(t *testing.T) {
 		reason string
 		want   bool
 	}{
-		{"length", true},       // DeepSeek / OpenAI-compatible
-		{"LENGTH", true},       // case-insensitive
-		{" length ", true},     // toleran whitespace
-		{"MAX_TOKENS", true},   // Gemini
-		{"max_tokens", true},   // Gemini lowercase
-		{"stop", false},        // selesai normal
-		{"", false},            // tidak dilaporkan provider (mock / legacy)
+		{"length", true},     // DeepSeek / OpenAI-compatible
+		{"LENGTH", true},     // case-insensitive
+		{" length ", true},   // toleran whitespace
+		{"MAX_TOKENS", true}, // Gemini
+		{"max_tokens", true}, // Gemini lowercase
+		{"stop", false},      // selesai normal
+		{"", false},          // tidak dilaporkan provider (mock / legacy)
 		{"content_filter", false},
 	}
 	for _, c := range cases {
@@ -34,7 +35,7 @@ func TestComplete_RejectsTruncatedOutput(t *testing.T) {
 	mock := &llm.MockProvider{Responses: []string{"dokumen setengah jadi..."}, FinishReason: "length"}
 	r := &Runner{Provider: mock}
 
-	_, err := r.complete(t.Context(), "sys", "user content")
+	_, err := r.complete(context.Background(), "sys", "user content")
 	if err == nil {
 		t.Fatal("expected error for truncated finish_reason=length, got nil")
 	}
@@ -47,7 +48,7 @@ func TestComplete_AllowsNormalStop(t *testing.T) {
 	mock := &llm.MockProvider{Responses: []string{"dokumen lengkap."}, FinishReason: "stop"}
 	r := &Runner{Provider: mock}
 
-	out, err := r.complete(t.Context(), "sys", "user content")
+	out, err := r.complete(context.Background(), "sys", "user content")
 	if err != nil {
 		t.Fatalf("unexpected error for finish_reason=stop: %v", err)
 	}

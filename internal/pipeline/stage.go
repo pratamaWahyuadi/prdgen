@@ -4,6 +4,9 @@ type Stage int
 
 const (
 	StageDiscovery Stage = iota
+	StageDiscoveryBrief
+	StageDiscoveryGate
+	StageDiscoveryDeep
 	StageSecurity
 	StagePRD
 	StageValidatePRD
@@ -14,6 +17,12 @@ func (s Stage) String() string {
 	switch s {
 	case StageDiscovery:
 		return "discovery"
+	case StageDiscoveryBrief:
+		return "discovery_brief"
+	case StageDiscoveryGate:
+		return "discovery_gate"
+	case StageDiscoveryDeep:
+		return "discovery_deep"
 	case StageSecurity:
 		return "security"
 	case StagePRD:
@@ -30,6 +39,12 @@ func (s Stage) String() string {
 func (s Stage) Next() Stage {
 	switch s {
 	case StageDiscovery:
+		return StageDiscoveryBrief
+	case StageDiscoveryBrief:
+		return StageDiscoveryGate
+	case StageDiscoveryGate:
+		return StageSecurity
+	case StageDiscoveryDeep:
 		return StageSecurity
 	case StageSecurity:
 		return StagePRD
