@@ -81,6 +81,16 @@ PERSIS dari PRD, bukan versi generic):
    dua driver berbeda punya sentinel berbeda dan errors.Is tidak match
    silang). Tanpa step ini, tiap issue menebak pola error sendiri.
 
+4. "Setup Config & Logger (Single Source of Truth)": SATU package/struct
+   config yang membaca environment/secrets di satu file (sebutkan nama
+   filenya persis, sesuai keputusan config management di PRD/Asumsi
+   Teknis), dan SATU logger terkonfigurasi di satu file (library persis
+   dari PRD/defaults). Semua kode lain membaca config dari struct itu dan
+   memakai logger itu via injection -- DILARANG memanggil env-reading
+   atau logging-primitive secara langsung di handler/repository, karena
+   itu bikin tiap file punya pola config/logging beda (fmt.Println di
+   satu package, slog di yang lain, os.Getenv tercecer di handler).
+
 Di SETIAP fase/step berikutnya yang menyentuh database/cache/queue/HTTP
 client (repository, handler, worker, dst), WAJIB tulis instruksi eksplisit
 "gunakan koneksi/client dari [file Fase 1], JANGAN buat instance/pool

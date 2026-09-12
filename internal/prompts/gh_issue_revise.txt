@@ -19,6 +19,13 @@ Aturan revisi:
   lain yang mungkin perlu direview manual oleh user.
 - Tetap pertahankan konsistensi nama tabel/kolom/endpoint terhadap Database
   Schema dan API Contracts yang diberikan -- jangan mengarang ulang.
+- PERTAHANKAN baris-baris kontrak yang ada di draft asal, jangan dihapus
+  kecuali feedback user eksplisit minta: (a) Acceptance Criteria anti
+  instance-kedua ("TIDAK membuat instance/pool koneksi baru; reuse dari
+  [file]"), (b) rujukan file sumber koneksi/instance di Technical Notes,
+  (c) rujukan ID threat (T1, T2, ...) yang ditutup issue ini. Baris-baris
+  ini adalah rantai anti-double-pool dan jejak audit security -- revisi
+  yang menghilangkannya diam-diam membuka lagi bug yang sudah ditutup.
 - Pertahankan format body yang sama seperti draft asal (## Context, ##
   Scope, ## Acceptance Criteria, ## Technical Notes), kecuali feedback user
   eksplisit minta struktur berbeda.
