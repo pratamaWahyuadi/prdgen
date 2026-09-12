@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"prdgen/internal/ghissues"
@@ -268,6 +269,7 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			fmt.Println("\n--- Threat Report ---")
 			fmt.Println(threatReport)
 			fmt.Printf("\nTersimpan di %s\n", path)
+			printSanityWarnings(threatReport, pipeline.DocOther)
 			if !confirm(reader, "Lanjut ke generate PRD?") {
 				return fmt.Errorf("dibatalkan oleh user di stage security")
 			}
@@ -279,6 +281,7 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				return fmt.Errorf("stage prd: %w", err)
 			}
 			prd = doc
+			printSanityWarnings(prd, pipeline.DocPRD)
 			path, err := s.Save(store.FilePRD, prd)
 			if err != nil {
 				return err
@@ -400,6 +403,7 @@ func runLLDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				return fmt.Errorf("stage erd: %w", err)
 			}
 			schema = out
+			printSanityWarnings(schema, pipeline.DocSchema)
 			path, err := s.Save(store.FileSchema, schema)
 			if err != nil {
 				return err
@@ -416,6 +420,7 @@ func runLLDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				return fmt.Errorf("stage api: %w", err)
 			}
 			apiContracts = out
+			printSanityWarnings(apiContracts, pipeline.DocAPI)
 			path, err := s.Save(store.FileAPIContracts, apiContracts)
 			if err != nil {
 				return err
@@ -432,6 +437,7 @@ func runLLDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 				return fmt.Errorf("stage plan: %w", err)
 			}
 			codingPlan = out
+			printSanityWarnings(codingPlan, pipeline.DocPlan)
 			path, err := s.Save(store.FileCodingPlan, codingPlan)
 			if err != nil {
 				return err
@@ -516,9 +522,37 @@ func runIssuesPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, 
 		return fmt.Errorf("gagal parse %s: %w", store.FileIssuesJSON, err)
 	}
 
+	// Sanity check mekanis (tanpa LLM, gratis) sebelum issue dibuat ke
+	// GitHub -- penting terutama untuk mode --yes di mana review manual
+	// per-issue di-skip total. Temuan hanya WARNING; user tetap lanjut
+	// kalau mau (revisi issue via 'e' tetap tersedia di mode interaktif).
+	if findings := ghissues.ValidateDraft(issues, codingPlan); len(findings) > 0 {
+		fmt.Printf("\n⚠️  Sanity check draft (mekanis, tanpa LLM) menemukan %d temuan:\n", len(findings))
+		for _, f := range findings {
+			fmt.Printf("   - %s\n", f.Error())
+		}
+		fmt.Println("   (temuan ini bukan blocker; lewati dengan sadar, atau perbaiki lewat 'e' saat review per-issue)")
+	}
+
 	alreadyCreated, err := loadCreatedIssueTitles(s)
 	if err != nil {
 		return err
+	}
+
+	// Deteksi mismatch judul draft vs log: judul di ISSUES_CREATED.log yang
+	// TIDAK cocok dengan manapun judul di draft berarti draft sudah
+	// di-regenerate/di-revise setelah issue itu dibuat -- run ini tidak akan
+	// membuat issue penggantinya (skip by-title), jadi beri tahu user secara
+	// eksplisit daripada diam-diam menganggap semua aman.
+	if orphaned := findLoggedTitlesMissingFromDraft(alreadyCreated, issues); len(orphaned) > 0 {
+		fmt.Printf("\n⚠️  Ada %d judul di ISSUES_CREATED.log yang tidak ada di draft sekarang:\n", len(orphaned))
+		for _, t := range orphaned {
+			fmt.Printf("   - %s\n", t)
+		}
+		fmt.Println("   Kemungkinan draft sudah di-regenerate/revisi setelah issue di atas dibuat.")
+		fmt.Println("   Issue lama tetap ada di GitHub; run ini TIDAK akan membuat issue penggantinya")
+		fmt.Println("   (skip berdasarkan judul hanya berlaku untuk judul yang persis sama). Kalau kamu")
+		fmt.Println("   sengaja mengganti issue lama dengan yang baru, review manual dulu sebelum lanjut.")
 	}
 
 	fmt.Printf("\nDitemukan %d issue di draft:\n", len(issues))
@@ -701,10 +735,30 @@ func loadCreatedIssueTitles(s *store.Store) (map[string]bool, error) {
 		if line == "" {
 			continue
 		}
-		title, _, _ := strings.Cut(line, "\t")
+		title, _, _ := strings.Cut(line, "	")
 		titles[title] = true
 	}
 	return titles, nil
+}
+
+// findLoggedTitlesMissingFromDraft membandingkan judul di ISSUES_CREATED.log
+// dengan judul di draft sekarang. Judul yang tercatat di log tapi tidak ada
+// di draft berarti draft diganti setelah issue dibuat (revise/regenerate) --
+// kalau tidak diumumkan, issue pengganti judul-baru itu bakal dibuat dobel
+// (log tidak match) atau issue lama diam-diam dianggap masih terwakili.
+func findLoggedTitlesMissingFromDraft(logged map[string]bool, issues []ghissues.Issue) []string {
+	draftTitles := make(map[string]bool, len(issues))
+	for _, iss := range issues {
+		draftTitles[iss.Title] = true
+	}
+	var missing []string
+	for t := range logged {
+		if !draftTitles[t] {
+			missing = append(missing, t)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 // runRevisePipeline merevisi SATU dokumen (PRD/schema/API contracts/coding
@@ -894,4 +948,21 @@ func confirm(reader *bufio.Reader, question string) bool {
 	line, _ := reader.ReadString('\n')
 	answer := strings.ToLower(strings.TrimSpace(line))
 	return answer == "y" || answer == "yes"
+}
+
+// printSanityWarnings menjalankan pemeriksaan struktural murah terhadap
+// dokumen yang baru di-generate dan mencetak temuan sebagai WARNING sebelum
+// dokumen dikonfirmasi/disimpan. Tidak pernah memblok -- user tetap pegang
+// keputusan (hormat pada konfirmasi y/n yang sudah ada), tapi temuan
+// truncation/format yang jelas cacat tidak lagi lolos diam-diam.
+func printSanityWarnings(doc string, kind pipeline.DocKind) {
+	findings := pipeline.SanityCheck(doc, kind)
+	if len(findings) == 0 {
+		return
+	}
+	fmt.Printf("\n⚠️  Sanity check menemukan %d temuan pada dokumen ini:\n", len(findings))
+	for _, f := range findings {
+		fmt.Printf("   - %s\n", f)
+	}
+	fmt.Println("   (periksa dokumen sebelum lanjut -- terutama kalau temuan menyebut terpotong)")
 }

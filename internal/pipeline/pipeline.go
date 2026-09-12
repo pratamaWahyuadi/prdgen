@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"prdgen/internal/llm"
 	"prdgen/internal/prompts"
@@ -20,6 +21,24 @@ func (r *Runner) loadPrompt(n prompts.Name) (string, error) {
 	return prompts.Load(n)
 }
 
+// truncatedFinishReasons: daftar finish reason (lowercase) yang berarti output
+// model TERPOTONG, bukan selesai secara normal. Menyimpan dokumen yang
+// terpotong itu fatal: file dianggap "complete" oleh IsComplete, run berikutnya
+// resume memakai dokumen setengah jadi itu sebagai konteks, dan meracuni
+// semua stage downstream secara diam-diam. DeepSeek memakai "length", Gemini
+// memakai "MAX_TOKENS".
+var truncatedFinishReasons = map[string]bool{
+	"length":     true, // OpenAI-compatible / DeepSeek
+	"max_tokens": true, // Gemini
+}
+
+// IsTruncated melaporkan apakah sebuah response LLM kemungkinan besar
+// terpotong di tengah karena kehabisan budget token. Dipakai di semua stage
+// pipeline supaya dokumen setengah jadi tidak pernah tersimpan ke disk.
+func IsTruncated(finishReason string) bool {
+	return truncatedFinishReasons[strings.ToLower(strings.TrimSpace(finishReason))]
+}
+
 func (r *Runner) complete(ctx context.Context, systemPrompt, userContent string) (string, error) {
 	resp, err := r.Provider.Complete(ctx, llm.CompletionRequest{
 		SystemPrompt: systemPrompt,
@@ -31,6 +50,13 @@ func (r *Runner) complete(ctx context.Context, systemPrompt, userContent string)
 	})
 	if err != nil {
 		return "", err
+	}
+	if IsTruncated(resp.FinishReason) {
+		return "", fmt.Errorf(
+			"pipeline: output model terpotong (finish_reason=%q) -- dokumen TIDAK disimpan agar tidak meracuni stage berikutnya. "+
+				"Jalankan ulang command yang sama untuk mencoba generate ulang",
+			resp.FinishReason,
+		)
 	}
 	return resp.Content, nil
 }
