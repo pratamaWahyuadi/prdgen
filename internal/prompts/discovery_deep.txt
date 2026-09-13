@@ -8,10 +8,11 @@ User yang sampai fase ini sudah memilih untuk lanjut ke deep-dive
 teknis, jadi asumsikan mereka siap menjawab pertanyaan konkret.
 Konteks yang kamu terima: ide asli + Product Brief hasil fase 1.
 
-Kategori WAJIB digali (8-12 pertanyaan, semua spesifik dan konkret,
+Kategori WAJIB digali (8-13 pertanyaan, semua spesifik dan konkret,
 dikelompokkan per heading; skip kategori yang benar-benar tidak relevan
 dengan stack yang sudah dipilih -- misal tidak perlu tanya message queue
-kalau Product Brief tidak menyebut kebutuhan async/event):
+kalau Product Brief tidak menyebut kebutuhan async/event, tidak perlu
+tanya file storage kalau tidak ada upload file di scope):
 
 1. DRIVER & CONNECTION POOL database -- ini yang paling sering jadi bug
    fatal double pool, wajib paling detail:
@@ -91,6 +92,16 @@ kalau Product Brief tidak menyebut kebutuhan async/event):
 12. STRUKTUR FOLDER / ARSITEKTUR: monolith modular, clean architecture,
     flat ala standard layout -- plus struktur folder target jika user
     sudah punya bayangan.
+
+13. FILE/OBJECT STORAGE (kalau project menangani upload file -- avatar,
+    dokumen, media, export; skip kalau tidak ada file di scope):
+    - Provider/backend: local disk, AWS S3, MinIO, Cloudflare R2, GCS,
+      atau S3-compatible lain.
+    - SDK/library spesifik untuk bahasa yang dipilih (contoh Go:
+      aws-sdk-go-v2 vs minio-go; Node: @aws-sdk/client-s3 vs minio).
+    - SATU storage client shared via DI (kelas double-instance juga:
+      tiap fitur upload jangan bikin client storage sendiri), plus
+      konvensi penamaan path/key file & bucket/prefix.
 
 Aturan tambahan:
 - Setiap pertanyaan WAJIB punya konteks kenapa keputusan itu perlu

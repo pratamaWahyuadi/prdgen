@@ -80,7 +80,7 @@ func checkPRDRequiredSections(doc string) []string {
 		findings = append(findings, "tidak ditemukan sub-section 'Koneksi & Driver Database' -- wajib ada di PRD karena dikutip verbatim oleh ERD/plan/issues (anti double-pool)")
 	}
 	if !prdSharedInstPattern.MatchString(doc) {
-		findings = append(findings, "tidak ditemukan sub-section 'Instance Terbagi Lain' (cache/MQ/HTTP client/migration tool) -- wajib ada supaya agent LLD tidak menebak instance sendiri")
+		findings = append(findings, "tidak ditemukan sub-section 'Instance Terbagi Lain' (cache/MQ/HTTP/file storage/migration tool/session store) -- wajib ada supaya agent LLD tidak menebak instance sendiri")
 	}
 	if !prdAssumptionPattern.MatchString(doc) {
 		findings = append(findings, "tidak ditemukan section '7.5 Asumsi Teknis' -- wajib ada berisi tabel keputusan low-level + flag [ASSUMED] (kontrak untuk coding agent)")

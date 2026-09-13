@@ -129,6 +129,7 @@ func touchesSharedInfra(body string) bool {
 var strongInfraKeywords = []string{
 	"postgres", "mysql", "sqlite", "redis", "kafka", "rabbitmq",
 	"sqlc", "gorm", "prisma", "dsn", "migration", "database",
+	"s3", "minio", "bucket", "object storage", "file storage",
 }
 
 // ambiguousInfraKeywords: butuh pasangan (2 match berbeda) -- maknanya

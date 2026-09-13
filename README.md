@@ -115,8 +115,9 @@ antaranya:
    default eksplisit?"
    - **Lanjut (y)** — Fase 2 menggali keputusan low-level yang berisiko
      ditebak ulang per-issue oleh coding agent kalau tidak dikunci: driver
-     database & strategi pool, query layer, migration tool, cache/MQ/HTTP
-     client, config, testing, CI/CD, struktur folder (8–10 pertanyaan).
+     database & strategi pool, query layer, migration tool, cache/MQ/HTTP/
+     storage client, config, error handling & logging, auth implementation,
+     testing, CI/CD, struktur folder (8–13 pertanyaan).
    - **Skip (n)** — semua keputusan low-level diberi default eksplisit yang
      ditulis ke `defaults.yaml`: setiap nilai dicatat dengan flag
      `[ASSUMED]` + basisnya (familiarity tim kalau kejawab, default umum

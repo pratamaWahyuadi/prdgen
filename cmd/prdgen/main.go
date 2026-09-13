@@ -293,8 +293,8 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			fmt.Println("Product Brief di atas mengunci keputusan high-level (bahasa, framework,")
 			fmt.Println("database engine, deployment). Yang BELUM dikunci: keputusan low-level yang")
 			fmt.Println("berisiko ditebak ulang per-issue oleh coding agent nanti -- driver & pool,")
-			fmt.Println("query layer, migration tool, cache/MQ/HTTP client, config, testing, CI/CD,")
-			fmt.Println("struktur folder.")
+			fmt.Println("query layer, migration tool, cache/MQ/HTTP/storage client, config, error")
+			fmt.Println("handling & logging, auth implementation, testing, CI/CD, struktur folder.")
 			choice := askDeepDiveChoice(reader)
 			switch choice {
 			case "y":
@@ -480,7 +480,7 @@ func determineStartStage(s *store.Store) pipeline.Stage {
 func askDeepDiveChoice(reader *bufio.Reader) string {
 	const maxAttempts = 3
 	fmt.Println("\nMau lanjut ke deep-dive teknis (driver, connection pool, query layer,")
-	fmt.Print("migration tool, cache/MQ client, config, testing, CI/CD, struktur folder)? (y=lanjut, n=skip & pakai default eksplisit, q=berhenti): ")
+	fmt.Print("migration tool, cache/MQ/storage client, config, error handling & logging, auth, testing, CI/CD, struktur folder)? (y=lanjut, n=skip & pakai default eksplisit, q=berhenti): ")
 	for attempt := 1; ; attempt++ {
 		line, _ := reader.ReadString('\n')
 		switch strings.ToLower(strings.TrimSpace(line)) {

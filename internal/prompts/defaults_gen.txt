@@ -43,6 +43,14 @@ kosong. Kalau PUNYA:
 - token_refresh: strategi refresh token & expiry singkat.
 Semua flagged assumed.
 
+Khusus file_storage: kalau project TIDAK menangani upload file, tulis
+"tidak ada -- tanpa file storage" + basis singkat. Kalau PUNYA, isi:
+backend default paling aman untuk deployment target di Brief (local disk
+untuk VPS single-node, S3-compatible untuk cloud), library client
+default untuk stack itu, pola SATU client shared via DI (kelas
+double-instance sama dengan cache/queue), dan konvensi penamaan
+bucket/prefix singkat. Flagged assumed.
+
 Template:
 
 stack:
@@ -57,6 +65,7 @@ shared_instances:
   cache_client:   { value: "", assumed: true, basis: "" }
   message_queue:  { value: "", assumed: true, basis: "" }
   http_client:    { value: "", assumed: true, basis: "" }
+  file_storage:   { value: "", assumed: true, basis: "" }
   auth_library:   { value: "", assumed: true, basis: "" }
   session_store:  { value: "", assumed: true, basis: "" }
   password_hash:  { value: "", assumed: true, basis: "" }

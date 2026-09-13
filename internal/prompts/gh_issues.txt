@@ -47,11 +47,12 @@ Cara memecah issue:
   tabel/kolom, endpoint, format request/response) yang dibutuhkan supaya
   coding agent TIDAK perlu menebak-nebak atau membuka dokumen lain.
   KHUSUS untuk issue yang menyentuh database/cache/queue/HTTP client/
-  session-auth: WAJIB sebutkan eksplisit driver/library persis dan file
-  sumber koneksi/instance yang harus dipakai (ambil PERSIS dari sub-section
-  "Koneksi & Driver Database"/"Instance Terbagi Lain" di PRD/Coding Plan,
-  contoh: "gunakan `*pgxpool.Pool` yang di-inject dari `internal/db/db.go`,
-  JANGAN membuat koneksi atau pool baru di file ini"). Setiap issue yang
+  file storage/session-auth: WAJIB sebutkan eksplisit driver/library
+  persis dan file sumber koneksi/instance yang harus dipakai (ambil
+  PERSIS dari sub-section "Koneksi & Driver Database"/"Instance Terbagi
+  Lain" di PRD/Coding Plan, contoh: "gunakan `*pgxpool.Pool` yang
+  di-inject dari `internal/db/db.go`, JANGAN membuat koneksi atau pool
+  baru di file ini"). Setiap issue yang
   berpotensi bikin coding agent menginisialisasi koneksi/instance sendiri
   (terutama issue paling awal per package/domain baru) WAJIB punya baris
   Acceptance Criteria eksplisit seperti "- [ ] TIDAK membuat instance/pool

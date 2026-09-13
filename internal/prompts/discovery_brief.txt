@@ -35,8 +35,8 @@ Aturan:
 - Di akhir brief, tambahkan bagian "## Pertanyaan Deep-Dive yang Perlu
   Dihafal" berisi daftar singkat area teknis yang nanti digali di fase
   Technical Deep Dive (driver DB, pool, query layer, migration, cache,
-  MQ, HTTP client, config, error handling, logging, auth implementation,
-  testing, CI/CD, struktur folder) -- murni sebagai pengingat cakupan,
-  satu baris saja, tanpa pertanyaan konkret. Daftar ini HARUS mengikuti
-  kategori yang paling baru dari fase deep-dive -- jangan salin dari
-  memori lama.
+  MQ, HTTP client, file storage, config, error handling, logging, auth
+  implementation, testing, CI/CD, struktur folder) -- murni sebagai
+  pengingat cakupan, satu baris saja, tanpa pertanyaan konkret. Daftar
+  ini HARUS mengikuti kategori yang paling baru dari fase deep-dive --
+  jangan salin dari memori lama.
