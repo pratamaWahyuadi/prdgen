@@ -12,7 +12,8 @@ schema dengan tool tersebut (contoh: kalau Prisma, sebutkan juga potongan
 WAJIB kutip ULANG secara verbatim di paling atas dokumen (sebelum ERD)
 sub-section "Koneksi & Driver Database" dari PRD (nama driver/package
 persis + strategi pool), DAN sub-section "Instance Terbagi Lain" (cache
-client, message queue, HTTP client, migration tool -- yang relevan).
+client, message queue, HTTP client, migration tool, session store/auth --
+yang relevan).
 Ini bukan basa-basi -- kalau kamu pakai sqlc, signature kode yang nanti
 di-generate (pgx.Pool vs *sql.DB) TERGANTUNG persis pada driver ini, jadi
 harus eksplisit di sini supaya agent API Contract dan Coding Plan

@@ -27,10 +27,13 @@ Cek LIMA hal ini:
 
 5. INSTANCE TERBAGI LAIN + KETAATAN KONTRAK ASUMSI: cek juga komponen
    shared-instance selain database -- cache client, message queue,
-   HTTP client custom, migration tool. Apakah library/strategi instance
-   tunggalnya di PRD (sub-section "Instance Terbagi Lain" dan section
-   7.5 "Asumsi Teknis") sama dengan yang dipakai di Coding Plan? Lalu,
-   kalau PRD punya flag [ASSUMED] / 🔶 Asumsi: apakah LLD menghormatinya
+   HTTP client custom, migration tool, session store/auth library.
+   Apakah library/strategi instance tunggalnya di PRD (sub-section
+   "Instance Terbagi Lain" dan section 7.5 "Asumsi Teknis") sama dengan
+   yang dipakai di Coding Plan? Termasuk kasus spesifik: session store
+   yang pakai Redis TIDAK boleh membuat client Redis kedua di luar
+   instance cache client yang sudah dikunci. Lalu, kalau PRD punya flag
+   [ASSUMED] / 🔶 Asumsi: apakah LLD menghormatinya
    apa adanya (kutip verbatim) dan menyertakan aturan "dilarang instance
    kedua + stop & tanya kalau tidak cocok"? Keputusan [ASSUMED] yang
    diganti-ganti agent LLD tanpa seizin user = kontradiksi, sama beratnya

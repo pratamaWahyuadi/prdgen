@@ -25,11 +25,12 @@ Aturan tech stack:
   framework yang PRD pilih. Catat asumsi itu di bagian atas dokumen.
 - KHUSUS semua komponen yang seharusnya jadi shared instance tunggal di
   seluruh aplikasi -- koneksi/pool database, cache client, message queue
-  connection, HTTP client custom, migration tool: WAJIB kutip verbatim
-  sub-section "Koneksi & Driver Database" DAN "Instance Terbagi Lain" dari
-  PRD (nama package/library persis + strategi instance). JANGAN pernah
-  membuat keputusan driver/pooling versimu sendiri di sini walaupun PRD-nya
-  kurang detail -- kalau PRD benar-benar tidak menyebutkan, tulis asumsi
+  connection, HTTP client custom, migration tool, session store/auth
+  library: WAJIB kutip verbatim sub-section "Koneksi & Driver Database"
+  DAN "Instance Terbagi Lain" dari PRD (nama package/library persis +
+  strategi instance). JANGAN pernah membuat keputusan driver/pooling
+  versimu sendiri di sini walaupun PRD-nya kurang detail -- kalau PRD
+  benar-benar tidak menyebutkan, tulis asumsi
   paling aman di bagian atas dokumen DAN pastikan asumsi itu konsisten
   dipakai di SETIAP fase yang menyentuh komponen tsb, bukan cuma di Fase 1.
 - Kalau PRD punya section "Asumsi Teknis" (7.5): itu KONTRAK. Kutip
@@ -69,8 +70,11 @@ PERSIS dari PRD, bukan versi generic):
 
 2. "Setup Instance Terbagi Lain" untuk SETIAP komponen relevan di project
    ini: cache client, message queue connection, HTTP client custom, file
-   storage client -- masing-masing SATU file inisialisasi + SATU instance
-   + inject via constructor. Sebutkan file persisnya per komponen.
+   storage client, session store/auth (kalau pakai Redis untuk session,
+   sebutkan eksplisit: reuse instance cache client dari step 1, JANGAN
+   buat client Redis kedua) -- masing-masing SATU file inisialisasi + SATU
+   instance + inject via constructor. Sebutkan file persisnya per
+   komponen.
 
 3. "Konvensi Error-Handling" yang mengunci: (a) pola error bahasa tersebut
    (Go: sentinel error di package domain + errors.Is/As + wrap fmt.Errorf

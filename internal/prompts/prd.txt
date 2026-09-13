@@ -11,7 +11,11 @@ Structure:
 5. Non-Functional Requirements
 6. High-Level Architecture
 6.5 Security: [PASTE hasil Security Auditor di sini, elaborate. Pertahankan
-   struktur Severity per item. Section "Prioritas Wajib untuk MVP" dari
+   struktur Severity per item. WAJIB pertahankan ID stabil (T1, T2, T3, ...)
+   APA ADANYA saat elaborasi -- jangan direnumber, jangan dihilangkan,
+   jangan parafrase sampai ID-nya hilang -- karena GitHub Issues dan proses
+   revise di hilir mengutip ID ini untuk jejak audit issue->threat (issue
+   mana menutup threat mana). Section "Prioritas Wajib untuk MVP" dari
    threat report WAJIB masuk sebagai requirement non-negotiable di PRD,
    bukan sekadar catatan.]
 7. Tech Stack & Justifikasi (WAJIB berdasarkan jawaban user di hasil
@@ -35,10 +39,12 @@ Structure:
    agent lain yang menebak driver sendiri-sendiri.)
 
    Sub-section WAJIB "Instance Terbagi Lain" (cache client, message queue,
-   HTTP client eksternal, migration tool): sebutkan library/package persis
-   dan strategi instance tunggal untuk tiap komponen yang relevan dengan
-   project ini, dengan aturan yang sama seperti database -- satu instance
-   shared via DI, dilarang instance kedua.)
+   HTTP client eksternal, migration tool, session store/auth library):
+   sebutkan library/package persis dan strategi instance tunggal untuk
+   tiap komponen yang relevan dengan project ini, dengan aturan yang sama
+   seperti database -- satu instance shared via DI, dilarang instance
+   kedua. KHUSUS session store kalau pakai Redis: WAJIB tulis "reuse
+   instance cache client yang sama, JANGAN buat client Redis kedua".)
 
 7.5 Asumsi Teknis -- SECTION WAJIB, TIDAK BOLEH KOSONG:
    - Kalau user mengikuti deep-dive (fase 2): tabel semua keputusan

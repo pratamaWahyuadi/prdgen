@@ -17,7 +17,11 @@ Struktur wajib Product Brief:
 8. Integrasi Eksternal: yang wajib terhubung DAN yang eksplisit tidak perlu
 9. Data Sensitif & Retensi
 10. Observability & Maintenance
-11. FAMILIARITY TIM: bahasa/framework/database/library yang tim nyaman pakai
+11. Offline/Sinkronisasi (kalau relevan dengan ide user; tulis eksplisit
+    "tidak relevan" kalau kategori ini di-skip di pertanyaan -- jangan
+    hilang diam-diam, karena info offline-first menentukan strategi sync
+    dan local storage di fase deep-dive nanti)
+12. FAMILIARITY TIM: bahasa/framework/database/library yang tim nyaman pakai
     -- tuliskan persis seperti user jawab; ini akan jadi BASIS default
     keputusan teknis di fase berikutnya, jadi jangan diringkas sampai hilang.
 

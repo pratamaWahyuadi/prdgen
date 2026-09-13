@@ -8,7 +8,7 @@ User yang sampai fase ini sudah memilih untuk lanjut ke deep-dive
 teknis, jadi asumsikan mereka siap menjawab pertanyaan konkret.
 Konteks yang kamu terima: ide asli + Product Brief hasil fase 1.
 
-Kategori WAJIB digali (8-10 pertanyaan, semua spesifik dan konkret,
+Kategori WAJIB digali (8-12 pertanyaan, semua spesifik dan konkret,
 dikelompokkan per heading; skip kategori yang benar-benar tidak relevan
 dengan stack yang sudah dipilih -- misal tidak perlu tanya message queue
 kalau Product Brief tidak menyebut kebutuhan async/event):
@@ -55,14 +55,38 @@ kalau Product Brief tidak menyebut kebutuhan async/event):
 7. CONFIG & SECRET MANAGEMENT: dari mana config dibaca (env vars, file,
    vault), library parsing-nya, bagaimana secret disimpan.
 
-8. TESTING STRATEGY: unit/integration/e2e, library test (testing standar
+8. ERROR HANDLING & LOGGING (dua keputusan yang WAJIB dikunci supaya tiap
+   issue coding tidak menebak pola sendiri):
+   - Pola error sesuai idiom bahasa yang dipilih (contoh Go: sentinel
+     error di package domain + errors.Is/As + wrap fmt.Errorf "%w";
+     Node: error class hierarchy + instanceof; Python: exception class
+     hierarki). Tanyakan preferensi atau familiarity tim.
+   - Translasi error antar layer: bagaimana error repository/service
+     dipetakan ke response code di handler (404 vs 400 vs 500 sesuai
+     format error API).
+   - Library logging spesifik + format (structured JSON vs teks biasa,
+     contoh Go: log/slog vs zap vs zerolog) dan level default.
+
+9. AUTH IMPLEMENTATION (kalau project punya auth -- kategori fase 1 soal
+   auth hanya level kasar; ini kelas shared-instance juga: session store
+   bisa jadi instance Redis/koneksi kedua kalau ditebak sendiri):
+   - Library JWT/session spesifik (contoh Go: golang-jwt/v5 vs jose;
+     Node: jsonwebtoken vs jose).
+   - Tempat session/token disimpan (Redis? in-memory? DB? JWT stateless
+     tanpa store?) -- kalau Redis, WAJIB konsisten dengan keputusan
+     cache client di poin 4 (satu instance, bukan client kedua).
+   - Strategi refresh token & expiry, algoritma hash password (bcrypt/
+     argon2).
+   Skip kategori ini kalau project tidak punya autentikasi sama sekali.
+
+10. TESTING STRATEGY: unit/integration/e2e, library test (testing standar
    vs testify, jest/vitest, pytest), testcontainers untuk DB-dependent
    test atau tidak.
 
-9. CI/CD KONKRET: GitHub Actions, GitLab CI, manual deploy? Isi
+11. CI/CD KONKRET: GitHub Actions, GitLab CI, manual deploy? Isi
    pipeline-nya apa saja (test, lint, build, deploy).
 
-10. STRUKTUR FOLDER / ARSITEKTUR: monolith modular, clean architecture,
+12. STRUKTUR FOLDER / ARSITEKTUR: monolith modular, clean architecture,
     flat ala standard layout -- plus struktur folder target jika user
     sudah punya bayangan.
 
