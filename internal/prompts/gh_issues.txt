@@ -58,8 +58,10 @@ Cara memecah issue:
   koneksi database baru; reuse yang sudah ada dari [file]" -- karena
   kalau ini ditebak beda-beda antar issue, hasilnya double connection pool
   yang mahal untuk di-rewrite belakangan. Termasuk issue auth/session:
-  sebutkan library JWT/session persis dan tempat session store-nya (kalau
-  Redis: reuse instance cache client, jangan client kedua).
+  sebutkan library JWT/session persis dan resource yang di-reuse untuk
+  session store sesuai media simpannya (Redis -> instance cache client;
+  tabel DB -> db_pool yang sama; JWT stateless -> tanpa store) -- jangan
+  ada media simpan yang melahirkan instance/koneksi baru.
   KHUSUS issue yang implement/menyentuh mitigasi security dari section
   6.5 PRD ("Prioritas Wajib untuk MVP" di threat report): WAJIB kutip
   threat item yang relevan (vector + mitigasi) di Technical Notes issue

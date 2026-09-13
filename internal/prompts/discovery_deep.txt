@@ -72,9 +72,11 @@ kalau Product Brief tidak menyebut kebutuhan async/event):
    bisa jadi instance Redis/koneksi kedua kalau ditebak sendiri):
    - Library JWT/session spesifik (contoh Go: golang-jwt/v5 vs jose;
      Node: jsonwebtoken vs jose).
-   - Tempat session/token disimpan (Redis? in-memory? DB? JWT stateless
-     tanpa store?) -- kalau Redis, WAJIB konsisten dengan keputusan
-     cache client di poin 4 (satu instance, bukan client kedua).
+   - Tempat session/token disimpan (Redis? in-memory? tabel di DB? JWT
+     stateless tanpa store?) -- apapun pilihannya, WAJIB reuse resource
+     yang sudah ada: kalau Redis, konsisten dengan keputusan cache client
+     di poin 4 (satu instance, bukan client kedua); kalau tabel di DB,
+     reuse db_pool dari poin 1 (bukan pool/koneksi kedua khusus session).
    - Strategi refresh token & expiry, algoritma hash password (bcrypt/
      argon2).
    Skip kategori ini kalau project tidak punya autentikasi sama sekali.

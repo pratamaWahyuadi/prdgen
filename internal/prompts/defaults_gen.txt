@@ -24,14 +24,24 @@ sekali di satu file, di-inject ke semua pemakai) -- ini mencegah kelas bug
 double connection pool yang mahal. Sebutkan nama file sumber koneksi
 konvensional untuk stack itu (contoh Go: internal/db/db.go).
 
-Khusus auth: isi field auth berdasarkan kebutuhan auth di Product Brief.
-Kalau project TIDAK punya autentikasi, tulis value "tidak ada autentikasi"
-+ basis singkat. Kalau PUNYA, isi minimal: library JWT/session default
-untuk stack itu, tempat session/token disimpan (kalau pakai Redis, WAJIB
-tulis "REUSE cache_client instance, JANGAN buat client Redis kedua" --
-session store adalah kelas double-instance juga), algoritma hash password
-default (bcrypt untuk mayoritas stack), dan strategi refresh token
-singkat. Semua flagged assumed.
+Khusus auth: empat field auth di bawah (auth_library, session_store,
+password_hash, token_refresh) diisi berdasarkan kebutuhan auth di Product
+Brief. Kalau project TIDAK punya autentikasi, tulis "tidak ada
+autentikasi" + basis singkat di SEMUA empat field -- jangan ada field
+kosong. Kalau PUNYA:
+- auth_library: library JWT/session default untuk stack itu.
+- session_store: tempat session/token disimpan. APAPUN pilihannya,
+  session store WAJIB reuse resource yang sudah ada -- JANGAN pernah
+  membuat instance/koneksi baru terlepas dari media simpannya:
+  Redis -> "REUSE cache_client instance (file yang sama dengan cache),
+  JANGAN buat client Redis kedua"; tabel di DB -> "REUSE db_pool yang
+  sama (file internal/db/db.go atau padanannya), JANGAN buka koneksi /
+  pool DB kedua khusus session"; JWT stateless -> "tanpa store, token
+  di-verify stateless". Tulis eksplisit resource mana yang di-reuse.
+- password_hash: algoritma hash password default (bcrypt untuk
+  mayoritas stack).
+- token_refresh: strategi refresh token & expiry singkat.
+Semua flagged assumed.
 
 Template:
 
@@ -47,7 +57,10 @@ shared_instances:
   cache_client:   { value: "", assumed: true, basis: "" }
   message_queue:  { value: "", assumed: true, basis: "" }
   http_client:    { value: "", assumed: true, basis: "" }
-  auth:           { value: "", assumed: true, basis: "" }
+  auth_library:   { value: "", assumed: true, basis: "" }
+  session_store:  { value: "", assumed: true, basis: "" }
+  password_hash:  { value: "", assumed: true, basis: "" }
+  token_refresh:  { value: "", assumed: true, basis: "" }
 conventions:
   error_handling: { value: "", assumed: true, basis: "" }
   logging:        { value: "", assumed: true, basis: "" }

@@ -70,11 +70,14 @@ PERSIS dari PRD, bukan versi generic):
 
 2. "Setup Instance Terbagi Lain" untuk SETIAP komponen relevan di project
    ini: cache client, message queue connection, HTTP client custom, file
-   storage client, session store/auth (kalau pakai Redis untuk session,
-   sebutkan eksplisit: reuse instance cache client dari step 1, JANGAN
-   buat client Redis kedua) -- masing-masing SATU file inisialisasi + SATU
-   instance + inject via constructor. Sebutkan file persisnya per
-   komponen.
+   storage client, session store/auth -- masing-masing SATU file
+   inisialisasi + SATU instance + inject via constructor. Sebutkan file
+   persisnya per komponen. KHUSUS session store: sebutkan eksplisit
+   resource mana yang di-reuse sesuai media simpannya (Redis -> reuse
+   instance cache client dari step 1; tabel DB -> reuse db_pool dari
+   step 1, JANGAN buka koneksi/pool DB kedua khusus session; JWT
+   stateless -> tanpa store) -- tidak ada media simpan yang boleh
+   melahirkan instance/koneksi baru.
 
 3. "Konvensi Error-Handling" yang mengunci: (a) pola error bahasa tersebut
    (Go: sentinel error di package domain + errors.Is/As + wrap fmt.Errorf

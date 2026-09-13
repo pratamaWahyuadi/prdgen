@@ -43,8 +43,12 @@ Structure:
    sebutkan library/package persis dan strategi instance tunggal untuk
    tiap komponen yang relevan dengan project ini, dengan aturan yang sama
    seperti database -- satu instance shared via DI, dilarang instance
-   kedua. KHUSUS session store kalau pakai Redis: WAJIB tulis "reuse
-   instance cache client yang sama, JANGAN buat client Redis kedua".)
+   kedua. KHUSUS session store: WAJIB tulis eksplisit resource mana yang
+   di-reuse sesuai media simpannya -- Redis -> reuse instance cache
+   client yang sama; tabel di database -> reuse pool koneksi database yang
+   sama (dari sub-section Koneksi & Driver Database); JWT stateless ->
+   tanpa store. DILARANG membuat instance/koneksi baru khusus session
+   terlepas dari media simpannya.)
 
 7.5 Asumsi Teknis -- SECTION WAJIB, TIDAK BOLEH KOSONG:
    - Kalau user mengikuti deep-dive (fase 2): tabel semua keputusan
