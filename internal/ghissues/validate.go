@@ -99,15 +99,15 @@ func ValidateDraft(issues []Issue, codingPlan string) []ValidationError {
 // komponen shared-instance (DB/cache/queue/HTTP client eksternal).
 //
 // TWO-TIER (bukan satu threshold flat):
-// - Kata KUAT (postgres, migration, sqlc, dsn, dst.) sudah spesifik
-//   dengan sendirinya menandakan infra -- SATU match cukup memicu rule.
-//   Contoh nyata yang harus tetap tertangkap: "tambah migration untuk
-//   tabel users" (satu keyword kuat: migration).
-// - Kata AMBIGU (pool, connection, repository) sering muncul di konteks
-//   non-infra ("connection pool" di config HTTP client, "repository
-//   pattern" di diskusi arsitektur) -- butuh minimal DUA match BERBEDA
-//   sebelum memicu, supaya satu kata generik tidak bikin noise warning
-//   yang lama-lama diabaikan user (alarm fatigue).
+//   - Kata KUAT (postgres, migration, sqlc, dsn, dst.) sudah spesifik
+//     dengan sendirinya menandakan infra -- SATU match cukup memicu rule.
+//     Contoh nyata yang harus tetap tertangkap: "tambah migration untuk
+//     tabel users" (satu keyword kuat: migration).
+//   - Kata AMBIGU (pool, connection, repository) sering muncul di konteks
+//     non-infra ("connection pool" di config HTTP client, "repository
+//     pattern" di diskusi arsitektur) -- butuh minimal DUA match BERBEDA
+//     sebelum memicu, supaya satu kata generik tidak bikin noise warning
+//     yang lama-lama diabaikan user (alarm fatigue).
 func touchesSharedInfra(body string) bool {
 	lower := strings.ToLower(body)
 	for _, kw := range strongInfraKeywords {
@@ -137,8 +137,9 @@ var strongInfraKeywords = []string{
 var ambiguousInfraKeywords = []string{"pool", "connection", "repository"}
 
 // planPhasePattern: mencocokkan baris judul fase di coding plan, contoh:
-//   "## Fase 1: Setup & DB Migrations"
-//   "### Fase 2 — Core Domain Logic"
+//
+//	"## Fase 1: Setup & DB Migrations"
+//	"### Fase 2 — Core Domain Logic"
 var planPhasePattern = regexp.MustCompile(`(?im)^#{1,6}\s*(fase|phase|tahap)\s*\d+.*$`)
 
 // extractPlanPhases mengembalikan set nama fase (verbatim, termasuk

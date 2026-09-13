@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"prdgen/internal/llm"
-	"prdgen/internal/prompts"
+	"github.com/pratamaWahyuadi/prdgen/internal/llm"
+	"github.com/pratamaWahyuadi/prdgen/internal/prompts"
 )
 
 type Runner struct {

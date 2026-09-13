@@ -10,7 +10,7 @@ Kenapa dipecah gitu? Karena AI yang dikasih tugas kebanyakan sekaligus
 cenderung ngarang atau lupa detail. Dengan dipecah, tiap agent cuma perlu
 fokus satu hal, dan hasil satu agent jadi input buat agent berikutnya.
 
-Contoh hasil prdgen:https://github.com/pratama20747/prdgen
+Contoh hasil prdgen: https://github.com/pratamaWahyuadi/prdgen
 
 ---
 
@@ -50,17 +50,41 @@ yang harus ditebak sistem, dan semakin bagus hasilnya.
 
 Butuh Go 1.22+ terinstall.
 
+### Cara 1 — `go install` (paling gampang, direkomendasikan)
+
 ```bash
-git clone <repo-ini>
+go install github.com/pratamaWahyuadi/prdgen/cmd/prdgen@latest
+```
+
+Selesai. Binary `prdgen` otomatis masuk ke `$GOBIN` (`~/go/bin/` secara
+default) dan bisa dipanggil dari mana saja -- asal folder itu ada di
+`$PATH` lo. Kalau belum, tambahkan sekali ke shell rc (`~/.bashrc` /
+`~/.zshrc`):
+
+```bash
+export PATH="$PATH:$HOME/go/bin"
+```
+
+Catatan: `@latest` mengambil commit terbaru yang sudah **di-push ke
+GitHub** -- kalau lo baru clone/belum push, pakai Cara 2.
+
+Update ke versi terbaru: jalankan command `go install` yang sama lagi.
+
+### Cara 2 — clone & build manual (untuk development lokal)
+
+```bash
+git clone https://github.com/pratamaWahyuadi/prdgen.git
 cd prdgen
 go build -o prdgen ./cmd/prdgen
 ```
 
-Ini menghasilkan satu binary `prdgen`. Pindahin ke folder yang ada di
-`$PATH` kalau mau bisa dipanggil dari mana saja (opsional):
+Ini menghasilkan satu binary `prdgen` di folder repo. Pindahin ke folder
+yang ada di `$PATH` kalau mau bisa dipanggil dari mana saja (opsional):
 
 ```bash
 sudo mv prdgen /usr/local/bin/
+# atau tanpa sudo, khusus user lo:
+mkdir -p ~/bin && mv prdgen ~/bin/   # pastikan ~/bin ada di $PATH
 ```
 
 ### Setup API key
@@ -69,12 +93,19 @@ sudo mv prdgen /usr/local/bin/
 cp .env.example .env
 ```
 
-Edit `.env`, isi:
+Edit `.env`, isi (contoh untuk DeepSeek; lihat `.env.example` untuk
+Gemini):
 
 ```
 DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 DEEPSEEK_MODEL=deepseek-chat
 ```
+
+Kalau lo install via `go install` (Cara 1), file `.env.example` tidak ada
+di komputer lo -- bikin file `.env` sendiri di folder tempat lo
+menjalankan `prdgen`, atau [export langsung di
+shell](https://www.gnu.org/software/bash/manual/bash.html#Environment-Variables)
+(`export DEEPSEEK_API_KEY=...`).
 
 `prdgen` otomatis baca file `.env` -- tidak perlu `export` manual tiap buka
 terminal baru. Urutan pencarian: `.env` di dalam folder project target dulu
@@ -324,10 +355,11 @@ diubah. Bedanya dengan validasi otomatis (`PRD_VALIDATION.md` /
 **benar-benar memperbaiki**.
 
 Alurnya: lo tulis feedback bebas (bisa multi-baris, akhiri dengan baris
-kosong) -> AI merevisi dokumen itu secara penuh (dengan konteks dokumen
-lain yang relevan supaya hasil revisi tetap konsisten, misal merevisi
-schema akan tetap memperhatikan PRD) -> hasil revisi ditampilkan lengkap
--> lo diminta konfirmasi (y/n) sebelum file aslinya benar-benar ditimpa.
+berisi `EOF` lalu Enter, atau Ctrl+D) -> AI merevisi dokumen itu secara
+penuh (dengan konteks dokumen lain yang relevan supaya hasil revisi tetap
+konsisten, misal merevisi schema akan tetap memperhatikan PRD) -> hasil
+revisi ditampilkan lengkap -> lo diminta konfirmasi (y/n) sebelum file
+aslinya benar-benar ditimpa.
 
 **Penting**: merevisi satu dokumen bisa bikin dokumen turunannya jadi
 tidak sinkron. Misal kalau lo revisi `PRD.md` setelah `03_schema.md` sudah
@@ -342,23 +374,26 @@ besar, jalankan ulang tahap berikutnya yang relevan (`prdgen lld` atau
 Issue yang sudah dibuat di GitHub itu **bukan** dokumen yang berdiri
 sendiri. Tiap issue cuma potongan kecil dari `PRD.md`, `03_schema.md`,
 `04_api_contracts.md`, dan `LLD_PLAN.md` -- lihat bagian "Technical Notes"
-di tiap issue, sering ada rujukan kayak "ERD Section 3" atau "API Contract
-7.2" yang isinya cuma ada di file-file itu, bukan di issue itu sendiri.
-Kalau AI coding agent cuma dikasih issue-nya doang tanpa dokumen
-pendukung, dia akan menebak sendiri detail seperti nama kolom database,
-format response API, atau urutan error code -- dan kemungkinan besar
-hasilnya meleset dari yang sudah dirancang.
+di tiap issue, sering ada rujukan kayak "tabel users" atau "POST
+/api/events" yang detailnya cuma ada di file-file itu, bukan di issue itu
+sendiri. Kalau AI coding agent cuma dikasih issue-nya doang tanpa
+dokumen pendukung, dia akan menebak sendiri detail seperti nama kolom
+database, format response API, atau urutan error code -- dan kemungkinan
+besar hasilnya meleset dari yang sudah dirancang.
 
 Jadi alurnya begini:
 
 ### 1. Bawa dokumen pendukung ke repo kode
 
-Copy 4 file ini dari folder project ke folder `docs/` di repo
-GitHub tempat issue-nya dibuat, lalu commit & push:
+Copy 4 file inti ini (plus `defaults.yaml` kalau ada -- hasil skip
+deep-dive) dari folder project ke folder `docs/` di repo GitHub tempat
+issue-nya dibuat, lalu commit & push:
 
 ```bash
 mkdir -p /path/ke/repo-kode/docs
 cp PRD.md 03_schema.md 04_api_contracts.md LLD_PLAN.md /path/ke/repo-kode/docs/
+# kalau lo skip deep-dive saat discovery (ada defaults.yaml), ikutkan:
+cp defaults.yaml /path/ke/repo-kode/docs/ 2>/dev/null || true
 cd /path/ke/repo-kode
 git add docs/
 git commit -m "docs: tambah PRD, schema, API contracts, coding plan"
@@ -538,9 +573,11 @@ bukan cuma "kebetulan jalan":
   heading fase, API contracts tanpa endpoint) yang hasilnya ditampilkan
   sebagai warning.
 - **Draft issues menyimpang dari coding plan.** Validasi mekanis (tanpa
-  LLM): field `phase` harus persis nama fase di plan; issue yang
-  menyentuh DB/cache/queue wajib menyebut file sumber koneksi yang
-  dikunci. Ini satu-satunya gerbang di mode `--yes`.
+  LLM): field `phase` harus cocok dengan nama fase di plan (dibandingkan
+  case-insensitive, whitespace di-collapse); issue yang menyentuh
+  DB/cache/queue/storage/session wajib menyebut file sumber
+  koneksi/instance yang dikunci. Ini satu-satunya gerbang di mode
+  `--yes`.
 - **Draft issues di-regenerate setelah sebagian issue dibuat.** Judul di
   `ISSUES_CREATED.log` yang tidak match draft diumumkan eksplisit
   (sebelumnya: issue dobel atau pengganti gak pernah dibuat, diam-diam).
@@ -553,7 +590,7 @@ Supaya ekspektasinya jelas -- ini yang **belum** ada solusinya:
 
 - **Kehilangan progress kalau di-Ctrl+C di tengah mengetik jawaban.**
   Checkpoint pertanyaan sudah aman (lihat di atas), tapi jawaban yang
-  sedang lo ketik (sebelum baris kosong penutup) belum tersimpan ke disk
+  sedang lo ketik (sebelum baris `EOF` penutup) belum tersimpan ke disk
   secara live per baris. Kalau berhenti di tengah mengetik jawaban,
   jawaban yang sudah diketik hilang, harus mulai jawab dari awal lagi.
   Saran sementara: siapkan jawaban di text editor dulu, baru paste
@@ -595,12 +632,15 @@ API key atau `gh` asli, jadi cepat dan bisa dijalankan di CI.
 
 ## Ganti provider LLM
 
-Saat ini pakai DeepSeek, tapi bisa diganti ke provider lain (OpenAI-
-compatible, Claude, dll) tanpa mengubah logic pipeline sama sekali:
+Built-in saat ini: **DeepSeek** (default) dan **Gemini** (Google AI
+Studio). Pilih lewat env `LLM_PROVIDER=deepseek|gemini` (lihat
+`.env.example`). Untuk provider lain (OpenAI-compatible, Claude, dll),
+bisa ditambah tanpa mengubah logic pipeline sama sekali:
 
 1. Implement interface `llm.Provider` (lihat `internal/llm/deepseek.go`
-   sebagai contoh -- cuma perlu 2 method: `Complete()` dan `Name()`).
-2. Ganti baris inisialisasi provider di `cmd/prdgen/main.go`.
+   atau `internal/llm/gemini.go` sebagai contoh -- cuma perlu 2 method:
+   `Complete()` dan `Name()`).
+2. Tambah case di fungsi `buildProvider` di `cmd/prdgen/main.go`.
 
 Package `internal/pipeline` (tempat semua logic tahap-tahap ada) tidak
 perlu disentuh sama sekali.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"prdgen/internal/llm"
+	"github.com/pratamaWahyuadi/prdgen/internal/llm"
 )
 
 func TestIsTruncated(t *testing.T) {

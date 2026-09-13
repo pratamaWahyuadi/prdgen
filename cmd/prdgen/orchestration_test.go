@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"prdgen/internal/ghissues"
-	"prdgen/internal/llm"
-	"prdgen/internal/pipeline"
-	"prdgen/internal/store"
+	"github.com/pratamaWahyuadi/prdgen/internal/ghissues"
+	"github.com/pratamaWahyuadi/prdgen/internal/llm"
+	"github.com/pratamaWahyuadi/prdgen/internal/pipeline"
+	"github.com/pratamaWahyuadi/prdgen/internal/store"
 )
 
 // newTestStore bikin store di temp dir dan mengembalikan cleanup func.
