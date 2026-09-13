@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -117,6 +118,53 @@ func TestSanityCheck_APIWithoutEndpoints(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected missing-endpoint finding, got: %v", findings)
+	}
+}
+
+func TestSanityCheck_APIEndpointsInRealWorldFormats(t *testing.T) {
+	// Regression (TikTok-clone planning): format output LLM nyata --
+	// heading ber-backtick dan baris tabel -- dulu ber-flag FALSE
+	// "tidak ditemukan endpoint" karena regex lama di-anchor ^heading
+	// tanpa backtick. Semua varian di bawah wajib lolos tanpa temuan.
+	docs := []string{
+		// heading ber-backtick (format yang kena bug)
+		"# API\n\n#### `GET /api/users/me`\n\nprose.\n",
+		// heading plain
+		"# API\n\n#### POST /api/videos\n\nprose.\n",
+		// heading 2-6 hash
+		"# API\n\n###### `DELETE /api/comments/:id`\n",
+		// baris tabel
+		"# API\n\n| METHOD / Path | Auth |\n|---|---|\n| `POST /api/videos/upload-intent` | wajib |\n",
+		// inline bold + backtick
+		"# API\n\nPanggil **`POST /api/videos/confirm`** setelah upload.\n",
+		// method di awal dokumen (posisi 0)
+		"`GET /api/health` — liveness probe.\n",
+	}
+	for i, doc := range docs {
+		findings := SanityCheck(doc, DocAPI)
+		for _, f := range findings {
+			if strings.Contains(f, "endpoint") {
+				t.Errorf("doc %d: valid endpoint format must not trigger finding: %s (doc: %.80s)", i, f, doc)
+			}
+		}
+	}
+}
+
+func TestSanityCheck_RealAPIContractDoc(t *testing.T) {
+	// Verifikasi fix bug terhadap dokumen produksi nyata yang memicunya:
+	// API contract TikTok-clone (24 endpoint, format heading ber-backtick
+	// + tabel) dulu memicu FALSE "tidak ditemukan endpoint".
+	// Skip kalau dokumen tidak ada di mesin ini (mis. CI).
+	const realDoc = "/home/pratama/prdgen_testing/planning/04_api_contracts.md"
+	b, err := os.ReadFile(realDoc)
+	if err != nil {
+		t.Skipf("dokumen nyata tidak tersedia di mesin ini: %v", err)
+	}
+	findings := SanityCheck(string(b), DocAPI)
+	for _, f := range findings {
+		if strings.Contains(f, "endpoint") {
+			t.Errorf("dokumen nyata (24 endpoint) tidak boleh memicu temuan endpoint: %s", f)
+		}
 	}
 }
 

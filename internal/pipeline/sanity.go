@@ -154,9 +154,16 @@ func checkTableDetail(doc string) []string {
 	return []string{"tidak ditemukan section detail per tabel (heading 'Tabel ...' / 'CREATE TABLE') -- penjelasan kolom & constraint adalah output wajib schema"}
 }
 
-// endpointPattern: baris spesifikasi endpoint, mis. "POST /api/users" atau
-// heading "### POST /users".
-var endpointPattern = regexp.MustCompile(`(?im)^(#{2,4}\s*)?(GET|POST|PUT|PATCH|DELETE)\s+/`)
+// endpointPattern: penyebutan endpoint -- method REST + slash-path. Sengaja
+// TIDAK di-anchor ke awal baris/heading: dokumen nyata menulis endpoint
+// dalam berbagai bentuk -- heading ber-backtick ("#### `GET /api/users/me`"),
+// baris tabel ("| `GET /api/users/me` | ... |"), bold/inline. Cukup method
+// didahului boundary non-word (backtick, |, *, newline, awal dokumen) dan
+// diikuti spasi + path. Bug nyata (TikTok-clone planning): versi lama
+// di-anchor ^heading TANPA backtick -> API contract valid 24 endpoint
+// ber-flag "tidak ditemukan endpoint" -- false alarm yang bikin user
+// mengabaikan warning (alarm fatigue).
+var endpointPattern = regexp.MustCompile(`(?i)(?:^|[^\w/])(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/`)
 
 // checkEndpoints: API contracts wajib memuat spesifikasi endpoint dengan
 // method + path. Nol match berarti dokumen itu kemungkinan besar omongan
