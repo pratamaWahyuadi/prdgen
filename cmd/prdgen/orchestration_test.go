@@ -197,6 +197,141 @@ func TestRunPRDPipeline_ResumeAtValidate_SendsPRDContent(t *testing.T) {
 	}
 }
 
+// --- post-validation revise loop ---
+
+func TestPostValidation_AutoReviseFlow(t *testing.T) {
+	// Full run: semua checkpoint ada, resume di validate_prd, user pilih
+	// 'r' (revise otomatis), konfirmasi 'y', lalu selesai di round 2.
+	// Mock harus menerima urutan: validate -> revise -> validate ulang.
+	s, _ := newTestStore(t)
+	mustSave(t, s, store.FileIdea, "ide")
+	mustSave(t, s, store.FileDiscoveryQA, "Q&A")
+	mustSave(t, s, store.FileProductBrief, "# Brief")
+	mustSave(t, s, store.FileDeepDiveQA, "deep dive answers")
+	mustSave(t, s, store.FileThreatReport, "# Threats")
+	mustSave(t, s, store.FilePRD, "# PRD v1\ntext lama")
+
+	mock := &llm.MockProvider{Responses: []string{
+		"## Item Terlewat\n- temuan A\n\n## Kesimpulan\nPRD tidak konsisten penuh.", // validate #1
+		"# PRD v2\ntext revisi dari temuan",                                            // revise
+		"PRD konsisten penuh dengan hasil discovery.",                                 // validate #2
+	}}
+	r := newTestRunnerWithMock(t, mock)
+	// input: 'r' (auto-revise), 'y' (konfirmasi timpa), Enter (selesai)
+	reader := bufio.NewReader(strings.NewReader("r\ny\n\n"))
+
+	if err := runPRDPipeline(context.Background(), r, s, reader); err != nil {
+		t.Fatalf("runPRDPipeline: %v", err)
+	}
+
+	// PRD harus tertimpa dengan hasil revisi.
+	prdContent, err := s.Load(store.FilePRD)
+	if err != nil {
+		t.Fatalf("load PRD: %v", err)
+	}
+	if !strings.Contains(prdContent, "PRD v2") {
+		t.Errorf("PRD.md harus berisi hasil revisi, got: %.100s", prdContent)
+	}
+	// PRD_VALIDATION harus berisi laporan TERBARU (re-validasi), bukan laporan lama.
+	valContent, err := s.Load(store.FilePRDValidation)
+	if err != nil {
+		t.Fatalf("load validation: %v", err)
+	}
+	if !strings.Contains(valContent, "konsisten penuh") {
+		t.Errorf("PRD_VALIDATION.md harus berisi laporan re-validasi terbaru, got: %.100s", valContent)
+	}
+	// Revisi otomatis HARUS menerima laporan validasi sebagai feedback,
+	// dan PRD_VALIDATION harus berisi laporan re-validasi terbaru.
+	if mock.CallsCount() != 3 {
+		t.Errorf("expected 3 LLM calls (validate, revise, re-validate), got %d", mock.CallsCount())
+	}
+	if len(mock.Requests) >= 2 && !strings.Contains(mock.Requests[1].Messages[0].Content, "temuan A") {
+		t.Errorf("request revisi harus berisi laporan validasi sebagai feedback, got: %.100s", mock.Requests[1].Messages[0].Content)
+	}
+}
+
+func TestPostValidation_ManualFeedbackFlow(t *testing.T) {
+	s, _ := newTestStore(t)
+	mustSave(t, s, store.FileIdea, "ide")
+	mustSave(t, s, store.FileDiscoveryQA, "Q&A")
+	mustSave(t, s, store.FileProductBrief, "# Brief")
+	mustSave(t, s, store.FileDeepDiveQA, "deep dive answers")
+	mustSave(t, s, store.FileThreatReport, "# Threats")
+	mustSave(t, s, store.FilePRD, "# PRD v1\ntext lama")
+
+	mock := &llm.MockProvider{Responses: []string{
+		"PRD tidak konsisten penuh.",   // validate
+		"# PRD v2 manual edit",         // revise dari feedback user
+		"PRD konsisten penuh.",         // re-validate
+	}}
+	r := newTestRunnerWithMock(t, mock)
+	// 'm' + feedback (EOF) + 'y' + Enter selesai
+	reader := bufio.NewReader(strings.NewReader("m\nperbaiki section 4\nEOF\ny\n\n"))
+
+	if err := runPRDPipeline(context.Background(), r, s, reader); err != nil {
+		t.Fatalf("runPRDPipeline: %v", err)
+	}
+	prdContent, err := s.Load(store.FilePRD)
+	if err != nil {
+		t.Fatalf("load PRD: %v", err)
+	}
+	if !strings.Contains(prdContent, "PRD v2 manual edit") {
+		t.Errorf("PRD.md harus berisi hasil revisi manual, got: %.100s", prdContent)
+	}
+	// Request ke-2 (index 1) = revisi; feedback user harus sampai ke sana.
+	if len(mock.Requests) < 2 {
+		t.Fatalf("expected at least 2 LLM requests, got %d", len(mock.Requests))
+	}
+	if !strings.Contains(mock.Requests[1].Messages[0].Content, "perbaiki section 4") {
+		t.Errorf("feedback manual harus diteruskan ke revisi (request #2), got: %.100s", mock.Requests[1].Messages[0].Content)
+	}
+}
+
+func TestPostValidation_FinishWithoutRevise(t *testing.T) {
+	s, _ := newTestStore(t)
+	mustSave(t, s, store.FileIdea, "ide")
+	mustSave(t, s, store.FileDiscoveryQA, "Q&A")
+	mustSave(t, s, store.FileProductBrief, "# Brief")
+	mustSave(t, s, store.FileDeepDiveQA, "deep dive answers")
+	mustSave(t, s, store.FileThreatReport, "# Threats")
+	mustSave(t, s, store.FilePRD, "# PRD v1 asli")
+
+	mock := &llm.MockProvider{Responses: []string{"PRD konsisten penuh dengan hasil discovery."}}
+	r := newTestRunnerWithMock(t, mock)
+	reader := bufio.NewReader(strings.NewReader("\n"))
+
+	if err := runPRDPipeline(context.Background(), r, s, reader); err != nil {
+		t.Fatalf("runPRDPipeline: %v", err)
+	}
+	// PRD tidak boleh berubah.
+	prdContent, err := s.Load(store.FilePRD)
+	if err != nil {
+		t.Fatalf("load PRD: %v", err)
+	}
+	if prdContent != "# PRD v1 asli" {
+		t.Errorf("PRD tidak boleh berubah saat user memilih selesai, got: %.100s", prdContent)
+	}
+	if mock.CallsCount() != 1 {
+		t.Errorf("expected 1 LLM call (validate only), got %d", mock.CallsCount())
+	}
+}
+
+func TestAskPostValidationChoice(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+	}{
+		{"r\n", "r"}, {"revise\n", "r"}, {"m\n", "m"}, {"manual\n", "m"},
+		{"\n", "s"}, {"s\n", "s"}, {"q\n", "s"}, {"x\n", "s"},
+	}
+	for _, c := range cases {
+		reader := bufio.NewReader(strings.NewReader(c.input))
+		if got := askPostValidationChoice(reader, 1, 3); got != c.want {
+			t.Errorf("askPostValidationChoice(%q) = %q, want %q", c.input, got, c.want)
+		}
+	}
+}
+
 // newTestRunnerWithMock bikin pipeline.Runner dengan mock provider -- tidak
 // butuh API key, semua panggilan LLM dijawab dari Responses.
 func newTestRunnerWithMock(t *testing.T, mock *llm.MockProvider) *pipeline.Runner {

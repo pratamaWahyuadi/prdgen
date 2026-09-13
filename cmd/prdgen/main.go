@@ -436,20 +436,11 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			fmt.Println("Lanjutkan dengan: prdgen lld <project-dir>")
 
 		case pipeline.StageValidatePRD:
-			fmt.Println("\n[validate] mengecek konsistensi PRD vs hasil discovery...")
+			fmt.Println("\n[validate] mengecek konsistensi PRD vs discovery...")
 			// Validator melihat SELURUH konteks discovery: fase 1 + deep-dive
 			// (kalau ada) + defaults.yaml (kalau skip) -- supaya coverage
 			// jawaban dan ketepatan flag [ASSUMED] bisa dinilai.
-			validateCtx := discoveryQA
-			if deepDiveQA != "" {
-				validateCtx = discoveryQA + "\n\n=== Jawaban Deep Dive ===\n" + deepDiveQA
-			} else if s.IsComplete(store.FileDefaultsYAML) {
-				v, err := s.Load(store.FileDefaultsYAML)
-				if err != nil {
-					return err
-				}
-				validateCtx = discoveryQA + "\n\n=== defaults.yaml (user skip deep-dive) ===\n" + v
-			}
+			validateCtx := buildValidateCtx(s, discoveryQA, deepDiveQA)
 			report, err := r.RunValidatePRD(ctx, validateCtx, prd)
 			if err != nil {
 				fmt.Printf("⚠️  Validator gagal jalan (%v), tapi PRD tetap tersimpan.\n", err)
@@ -462,10 +453,143 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			fmt.Println("\n--- Hasil Validasi PRD vs Discovery ---")
 			fmt.Println(report)
 			fmt.Printf("\nTersimpan di %s\n", path)
+
+			// Loop revisi pasca-validasi: temuan yang baru dibaca nggak
+			// seharusnya berakhir di "baca file-nya sendiri di editor".
+			// User bisa: (a) revisi otomatis dari laporan, (b) tulis
+			// feedback sendiri, (c) selesai. Tiap revisi otomatis
+			// diikuti re-validasi supaya PRD_VALIDATION.md tidak basi.
+			// Batas round mencegah loop revisi<->validasi tak berujung
+			// (tiap round = 2 panggilan LLM).
+			for round := 1; round <= maxAutoReviseRounds; round++ {
+				switch askPostValidationChoice(reader, round, maxAutoReviseRounds) {
+				case "r":
+					fmt.Println("\n[revise] merevisi PRD berdasarkan laporan validasi...")
+					revised, err := r.RunReviseDocument(ctx, prd, "Perbaiki PRD ini berdasarkan laporan validasi di bawah. Tangani SEMUA temuan (item terlewat + kontradiksi) satu per satu: item terlewat -> tambahkan ke section yang disebut laporan; kontradiksi -> jawaban discovery user SELALU menang atas isi PRD sekarang (kutip bagian yang salah lalu ganti sesuai jawaban user). Pertahankan ID threat T1/T2/... dan semua flag [ASSUMED]/user-confirmed apa adanya. Jangan ubah bagian yang tidak ditemukan bermasalah.\n\nLAPORAN VALIDASI:\n"+report, buildReviseCtx(s, discoveryQA, deepDiveQA, threatReport))
+					if err != nil {
+						fmt.Printf("⚠️  Revisi gagal (%v) -- PRD tidak berubah.\n", err)
+						continue
+					}
+					fmt.Println("\n--- PRD hasil revisi ---")
+					fmt.Println(revised)
+					if !confirm(reader, "\nTimpa PRD.md dengan hasil revisi ini?") {
+						fmt.Println("Dibatalkan, PRD asli tidak berubah.")
+						continue
+					}
+					prd = revised
+					printSanityWarnings(prd, pipeline.DocPRD)
+					if _, err := s.Save(store.FilePRD, prd); err != nil {
+						return err
+					}
+					fmt.Println("✅ PRD direvisi. Menjalankan ulang validasi...")
+					validateCtx := buildValidateCtx(s, discoveryQA, deepDiveQA)
+					newReport, err := r.RunValidatePRD(ctx, validateCtx, prd)
+					if err != nil {
+						fmt.Printf("⚠️  Re-validasi gagal (%v) -- PRD tersimpan, tapi laporan validasi lama tetap dipakai.\n", err)
+						continue
+					}
+					report = newReport
+					if _, err := s.Save(store.FilePRDValidation, report); err != nil {
+						return err
+					}
+					fmt.Println("\n--- Hasil Validasi Ulang ---")
+					fmt.Println(report)
+				case "m":
+					fmt.Println("Tulis feedback kamu (akhiri dengan baris berisi EOF lalu Enter, atau Ctrl+D):")
+					feedback := readMultiline(reader)
+					if strings.TrimSpace(feedback) == "" {
+						fmt.Println("Feedback kosong, dibatalkan.")
+						continue
+					}
+					revised, err := r.RunReviseDocument(ctx, prd, feedback, buildReviseCtx(s, discoveryQA, deepDiveQA, threatReport))
+					if err != nil {
+						fmt.Printf("⚠️  Revisi gagal (%v) -- PRD tidak berubah.\n", err)
+						continue
+					}
+					fmt.Println("\n--- PRD hasil revisi ---")
+					fmt.Println(revised)
+					if !confirm(reader, "\nTimpa PRD.md dengan hasil revisi ini?") {
+						fmt.Println("Dibatalkan, PRD asli tidak berubah.")
+						continue
+					}
+					prd = revised
+					printSanityWarnings(prd, pipeline.DocPRD)
+					if _, err := s.Save(store.FilePRD, prd); err != nil {
+						return err
+					}
+					fmt.Println("✅ PRD direvisi. Menjalankan ulang validasi...")
+					validateCtx := buildValidateCtx(s, discoveryQA, deepDiveQA)
+					newReport, err := r.RunValidatePRD(ctx, validateCtx, prd)
+					if err != nil {
+						fmt.Printf("⚠️  Re-validasi gagal (%v) -- PRD tersimpan, tapi laporan validasi lama tetap dipakai.\n", err)
+						continue
+					}
+					report = newReport
+					if _, err := s.Save(store.FilePRDValidation, report); err != nil {
+						return err
+					}
+					fmt.Println("\n--- Hasil Validasi Ulang ---")
+					fmt.Println(report)
+				default:
+					// "s"/selesai/kosong -- user puas atau mau review manual
+					// dulu di editor. Round tidak dipakai.
+					return nil
+				}
+			}
 		}
 		stage = stage.Next()
 	}
 	return nil
+}
+
+// maxAutoReviseRounds membatasi loop revisi-otomatis<->re-validasi. Setiap
+// round = 2 panggilan LLM (revisi + validasi ulang); tanpa batas, LLM yang
+// selalu menemukan "sesuatu" bikin loop tak berujung dan tagihan API.
+const maxAutoReviseRounds = 3
+
+// buildValidateCtx merangkai konteks discovery lengkap untuk validator:
+// fase 1 + deep-dive (kalau ada) + defaults.yaml (kalau user skip). Satu
+// tempat supaya panggilan pertama dan re-validasi setelah revisi konsisten.
+func buildValidateCtx(s *store.Store, discoveryQA, deepDiveQA string) string {
+	validateCtx := discoveryQA
+	if deepDiveQA != "" {
+		validateCtx += "\n\n=== Jawaban Deep Dive ===\n" + deepDiveQA
+	} else if s.IsComplete(store.FileDefaultsYAML) {
+		v, _ := s.Load(store.FileDefaultsYAML)
+		validateCtx += "\n\n=== defaults.yaml (user skip deep-dive) ===\n" + v
+	}
+	return validateCtx
+}
+
+// buildReviseCtx merangkai dokumen konteks pendukung untuk revisi PRD
+// (sama dengan konteks command `prdgen revise prd`): hasil discovery +
+// deep-dive + threat report, supaya revisi pasca-validasi tidak
+// mengarang tanpa dasar jawaban user.
+func buildReviseCtx(s *store.Store, discoveryQA, deepDiveQA, threatReport string) string {
+	parts := []string{"Hasil Discovery:\n" + discoveryQA}
+	if deepDiveQA != "" {
+		parts = append(parts, "Hasil Deep Dive:\n"+deepDiveQA)
+	}
+	if threatReport != "" {
+		parts = append(parts, "Threat Report:\n"+threatReport)
+	}
+	return strings.Join(parts, "\n\n")
+}
+
+// askPostValidationChoice menanyarkan langkah lanjut setelah laporan
+// validasi tampil. Return: "r" = revisi otomatis dari laporan, "m" =
+// feedback manual, apapun selain itu = selesai.
+func askPostValidationChoice(reader *bufio.Reader, round, maxRounds int) string {
+	fmt.Printf("\nSekarang mau gimana? (r=revise PRD otomatis dari laporan di atas, m=revise dengan feedback kamu sendiri, Enter=selesai) [round %d/%d]: ", round, maxRounds)
+	line, _ := reader.ReadString('\n')
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "r", "revise":
+		return "r"
+	case "m", "manual":
+		return "m"
+	default:
+		return "s"
+	}
 }
 
 // determineStartStage menentukan stage mulai untuk `prdgen new` berdasarkan

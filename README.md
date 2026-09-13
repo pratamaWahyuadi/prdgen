@@ -204,8 +204,12 @@ Setelah discovery selesai, sistem otomatis:
 3. Jalanin **validasi otomatis**: AI lain mengecek apakah PRD konsisten
    sama jawaban discovery (termasuk menghitung coverage: pertanyaan mana
    yang terjawab/kelewat, dan apakah yang "belum kepikiran" muncul di Open
-   Questions PRD -- bukan diisi tebakan). Hasilnya disimpan terpisah,
-   silakan dibaca.
+   Questions PRD -- bukan diisi tebakan). Setelah laporan tampil, lo
+   langsung ditawari tiga pilihan di terminal: **(r)** revisi PRD
+   otomatis berdasarkan laporan validasi, **(m)** revisi dengan feedback
+   lo sendiri, atau **Enter** selesai. Setiap revisi otomatis diikuti
+   re-validasi supaya `PRD_VALIDATION.md` selalu sinkron dengan PRD
+   terbaru (maks 3 round biar gak muter).
 
 ### Langkah 2 -- LLD (Low-Level Design)
 
