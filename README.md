@@ -65,10 +65,38 @@ default) dan bisa dipanggil dari mana saja -- asal folder itu ada di
 export PATH="$PATH:$HOME/go/bin"
 ```
 
-Catatan: `@latest` mengambil commit terbaru yang sudah **di-push ke
-GitHub** -- kalau lo baru clone/belum push, pakai Cara 2.
-
 Update ke versi terbaru: jalankan command `go install` yang sama lagi.
+
+**Kenapa path-nya panjang dan ada `/cmd/prdgen` di belakang?** Ini bagian
+yang paling sering bikin orang bingung, jadi dijelasin di sini:
+
+- `github.com/pratamaWahyuadi/prdgen` (tanpa `/cmd/prdgen`) itu **module**
+  -- cuma alamat repo, root dari project. Di situ tidak ada kode yang
+  bisa dijalankan, hanya `go.mod`. Kalau lo `go install` alamat module
+  saja, Go komplain:
+
+  ```
+  go: module github.com/pratamaWahyuadi/prdgen found (vX.Y.Z),
+      but does not contain package github.com/pratamaWahyuadi/prdgen
+  ```
+
+- `.../cmd/prdgen` itu **package** tempat fungsi `main()` berada (file
+  `cmd/prdgen/main.go` di repo ini). Yang di-install jadi binary itu
+  package yang punya `main()`, bukan module-nya. Jadi aturannya:
+  **module + path ke folder package main**. Nama binary yang dihasilkan
+  mengikuti nama folder terakhir (`prdgen`), bukan nama module.
+
+- `@latest` = ambil versi rilis tertinggi yang **sudah di-tag & di-push ke
+  GitHub** (misal `v0.1.1`). Bukan commit terbaru apa adanya -- kalau
+  belum ada tag `vX.Y.Z` di repo, `@latest` gagal dengan error
+  `no matching version`. Kalau lo butuh versi spesifik, ganti
+  `@latest` jadi `@v0.1.1`.
+
+- Kalau lo jalanin `go install` dari **dalam** folder module lain,
+  Go kadang komplain `requires a version when current directory is not
+  in a module`. Itu normal -- tinggal pastikan pakai suffix versi
+  (`@latest` atau `@vX.Y.Z`) seperti command di atas, dan tidak perlu
+  `cd` ke mana-mana.
 
 ### Cara 2 — clone & build manual (untuk development lokal)
 
