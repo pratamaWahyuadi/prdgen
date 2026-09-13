@@ -110,8 +110,21 @@ func buildProvider() (llm.Provider, error) {
 		}
 		return llm.NewGeminiProvider(apiKey, model), nil
 
+	case "tokenharbor":
+		// TokenHarbor (tokenharbor.ai) memakai protokol OpenAI-compatible
+		// -- klien yang sama dengan DeepSeek, hanya beda endpoint.
+		apiKey := os.Getenv("TOKENHARBOR_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("env TOKENHARBOR_API_KEY belum di-set")
+		}
+		model := os.Getenv("TOKENHARBOR_MODEL")
+		if model == "" {
+			model = "tokenharbor/qwen3-max"
+		}
+		return llm.NewTokenHarborProvider(apiKey, model), nil
+
 	default:
-		return nil, fmt.Errorf("LLM_PROVIDER tidak dikenal: %q (pilihan: deepseek, gemini)", name)
+		return nil, fmt.Errorf("LLM_PROVIDER tidak dikenal: %q (pilihan: deepseek, gemini, tokenharbor)", name)
 	}
 }
 
@@ -140,11 +153,13 @@ sudah di-generate ada bagian yang salah atau kurang pas -- kasih feedback
 bebas, dokumen direvisi, kamu review hasilnya dulu sebelum ditimpa ke file.
 
 Env vars:
-  LLM_PROVIDER        (opsional, default "deepseek") pilih "deepseek" atau "gemini"
+  LLM_PROVIDER        (opsional, default "deepseek") pilih "deepseek", "gemini", atau "tokenharbor"
   DEEPSEEK_API_KEY    (wajib kalau LLM_PROVIDER=deepseek) API key DeepSeek
   DEEPSEEK_MODEL      (opsional, default "deepseek-chat")
   GEMINI_API_KEY      (wajib kalau LLM_PROVIDER=gemini) API key Gemini (Google AI Studio)
   GEMINI_MODEL        (opsional, default "gemini-flash-latest")
+  TOKENHARBOR_API_KEY (wajib kalau LLM_PROVIDER=tokenharbor) API key TokenHarbor (thk_live_...)
+  TOKENHARBOR_MODEL   (opsional, default "tokenharbor/qwen3-max")
   PRDGEN_PROMPT_DIR   (opsional) folder berisi *.txt prompt custom, override default`)
 }
 

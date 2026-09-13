@@ -660,10 +660,13 @@ API key atau `gh` asli, jadi cepat dan bisa dijalankan di CI.
 
 ## Ganti provider LLM
 
-Built-in saat ini: **DeepSeek** (default) dan **Gemini** (Google AI
-Studio). Pilih lewat env `LLM_PROVIDER=deepseek|gemini` (lihat
-`.env.example`). Untuk provider lain (OpenAI-compatible, Claude, dll),
-bisa ditambah tanpa mengubah logic pipeline sama sekali:
+Built-in saat ini: **DeepSeek** (default), **Gemini** (Google AI
+Studio), dan **TokenHarbor** (tokenharbor.ai). Pilih lewat env
+`LLM_PROVIDER=deepseek|gemini|tokenharbor` (lihat `.env.example`).
+TokenHarbor dan DeepSeek sama-sama memakai protokol OpenAI-compatible,
+jadi keduanya berbagi klien yang sama -- hanya beda endpoint. Untuk
+provider lain (OpenAI-compatible, Claude, dll), bisa ditambah tanpa
+mengubah logic pipeline sama sekali:
 
 1. Implement interface `llm.Provider` (lihat `internal/llm/deepseek.go`
    atau `internal/llm/gemini.go` sebagai contoh -- cuma perlu 2 method:
