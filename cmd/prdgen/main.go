@@ -224,6 +224,18 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 		}
 		threatReport = v
 	}
+	// BUGFIX (resume): tanpa blok ini, run yang resume langsung ke
+	// StageValidatePRD membawa variabel prd = "" -- validator dikirim
+	// draft PRD kosong dan jujur melaporkan "PRD kosong" padahal PRD.md
+	// ada isinya. Kelas bug yang sama dengan resume deep-dive: state di
+	// disk tidak pernah di-load kembali ke memori saat resume.
+	if s.IsComplete(store.FilePRD) {
+		v, err := s.Load(store.FilePRD)
+		if err != nil {
+			return err
+		}
+		prd = v
+	}
 
 	if stage == pipeline.StageDiscovery {
 		if s.IsComplete(store.FileIdea) {

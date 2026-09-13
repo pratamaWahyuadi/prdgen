@@ -161,6 +161,42 @@ func TestWriteDefaultsFromBrief_RejectsEmptyOutput(t *testing.T) {
 	}
 }
 
+// --- runPRDPipeline end-to-end (resume) ---
+
+func TestRunPRDPipeline_ResumeAtValidate_SendsPRDContent(t *testing.T) {
+	// Regression: run yang resume langsung ke validate_prd dulu mengirim
+	// draft PRD KOSONG ke validator (variabel prd tidak pernah di-load
+	// dari disk) -- validator jujur melaporkan "PRD kosong" padahal
+	// PRD.md ada isinya. Kasus nyata: user menjalankan `prdgen new` dua
+	// kali setelah stage PRD selesai.
+	s, _ := newTestStore(t)
+	mustSave(t, s, store.FileIdea, "ide app")
+	mustSave(t, s, store.FileDiscoveryQA, "Q: bahasa? A: Go")
+	mustSave(t, s, store.FileProductBrief, "# Brief")
+	mustSave(t, s, store.FileDeepDiveQA, "driver: pgx/v5")
+	mustSave(t, s, store.FileThreatReport, "# Threats T1-T18")
+	mustSave(t, s, store.FilePRD, "# PRD FINAL TIKTOK\n\nTech Stack: Go + Echo")
+
+	if got := determineStartStage(s); got.String() != "validate_prd" {
+		t.Fatalf("precondition: expected resume at validate_prd, got %s", got)
+	}
+
+	mock := &llm.MockProvider{Responses: []string{"PRD konsisten penuh dengan hasil discovery."}}
+	r := newTestRunnerWithMock(t, mock)
+	reader := bufio.NewReader(strings.NewReader(""))
+
+	if err := runPRDPipeline(context.Background(), r, s, reader); err != nil {
+		t.Fatalf("runPRDPipeline: %v", err)
+	}
+	content := mock.LastRequest.Messages[0].Content
+	if !strings.Contains(content, "# PRD FINAL TIKTOK") {
+		t.Errorf("validator harus menerima isi PRD.md saat resume, dapat (200 char pertama): %.200s", content)
+	}
+	if !s.IsComplete(store.FilePRDValidation) {
+		t.Error("PRD_VALIDATION.md harus tersimpan setelah validasi")
+	}
+}
+
 // newTestRunnerWithMock bikin pipeline.Runner dengan mock provider -- tidak
 // butuh API key, semua panggilan LLM dijawab dari Responses.
 func newTestRunnerWithMock(t *testing.T, mock *llm.MockProvider) *pipeline.Runner {
