@@ -12,6 +12,13 @@ import (
 type Runner struct {
 	Provider  llm.Provider
 	PromptDir string
+	// Knowledge berisi referensi domain user (isi <project>/knowledge/*.md,
+	// di-load sekali di awal run oleh main). Di-inject ke SETIAP panggilan
+	// model lewat complete() -- satu touch point, tidak mungkin ada stage
+	// yang kelupaan. Dipakai untuk teknologi kurang-umum (mis. Zitadel)
+	// supaya agent tidak mengarang detail di luar base knowledge model.
+	// Kosong = tidak ada folder knowledge/ (fitur opt-in pasif).
+	Knowledge string
 }
 
 func (r *Runner) loadPrompt(n prompts.Name) (string, error) {
@@ -32,6 +39,23 @@ var truncatedFinishReasons = map[string]bool{
 	"max_tokens": true, // Gemini
 }
 
+// knowledgeSection merangkai blok injeksi pengetahuan domain user ke akhir
+// user content. Header-nya eksplisit soal presedensi: isi knowledge/
+// adalah fakta terverifikasi yang MENANG atas pengetahuan umum model --
+// ini yang mencegah agent "koreksi" gotcha live-verified (mis. ROPC
+// tidak ada di Zitadel v4) dengan hafalan training-nya yang salah.
+func (r *Runner) knowledgeSection() string {
+	if strings.TrimSpace(r.Knowledge) == "" {
+		return ""
+	}
+	return "\n\n=== REFERENSI TEKNOLOGI PENGGUNA (knowledge/) ===\n" +
+		"Isi di bawah adalah referensi teknis TERVERIFIKASI dari pengguna untuk teknologi spesifik yang dipakai project ini. " +
+		"ATURAN PRESEDENSI: isi referensi ini MENANG atas pengetahuan umum/training kamu. Kalau pengetahuanmu bertentangan dengan referensi ini, referensi yang benar -- jangan " +
+		"koreksi, jangan improvisasi, JANGAN menulis detail teknis tentang teknologi ini yang tidak ada di referensi. " +
+		"Kalau sebuah detail tidak ada di referensi dan tidak diketahui pasti, tandai sebagai asumsi yang perlu verifikasi.\n\n" +
+		r.Knowledge
+}
+
 // IsTruncated melaporkan apakah sebuah response LLM kemungkinan besar
 // terpotong di tengah karena kehabisan budget token. Dipakai di semua stage
 // pipeline supaya dokumen setengah jadi tidak pernah tersimpan ke disk.
@@ -40,6 +64,10 @@ func IsTruncated(finishReason string) bool {
 }
 
 func (r *Runner) complete(ctx context.Context, systemPrompt, userContent string) (string, error) {
+	// Knowledge injection: satu-satunya choke point semua panggilan model.
+	// Ditaruh SETELAH konteks task supaya "menang atas pengetahuan umum
+	// model" secara posisi -- instruksi eksplisit di header-nya.
+	userContent = userContent + r.knowledgeSection()
 	resp, err := r.Provider.Complete(ctx, llm.CompletionRequest{
 		SystemPrompt: systemPrompt,
 		Messages: []llm.Message{

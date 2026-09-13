@@ -52,12 +52,28 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	runner := &pipeline.Runner{Provider: provider, PromptDir: promptDir}
 
 	s, err := store.New(projectDir)
 	if err != nil {
 		return err
 	}
+
+	// Knowledge injection (opt-in pasif): <project>/knowledge/*.md berisi
+	// referensi domain user untuk teknologi kurang-umum (mis. Zitadel).
+	// Di-load sekali di sini, di-inject ke SEMUA panggilan model via
+	// Runner.complete -- discovery, security, PRD, LLD, issues, revisi,
+	// validasi, semuanya dapat konteks yang sama. Tidak memengaruhi
+	// resume (input read-only, bukan checkpoint).
+	knowledge, err := s.LoadKnowledge()
+	if err != nil {
+		return err
+	}
+	if knowledge != "" {
+		n := strings.Count(knowledge, "--- file: knowledge/")
+		fmt.Printf("📚 Knowledge injection aktif: %d file referensi dari %s/knowledge/ (dipakai semua stage)\n", n, projectDir)
+	}
+
+	runner := &pipeline.Runner{Provider: provider, PromptDir: promptDir, Knowledge: knowledge}
 
 	ctx := context.Background()
 	reader := bufio.NewReader(os.Stdin)

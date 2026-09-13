@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -64,6 +65,47 @@ func (s *Store) Append(filename, line string) error {
 		return fmt.Errorf("store: append to %q: %w", path, err)
 	}
 	return nil
+}
+
+// LoadKnowledge membaca semua file referensi user di <project>/knowledge/
+// (*.md / *.txt, urut nama) dan menggabungkannya dengan header per-file.
+// Folder ini adalah mekanisme injeksi pengetahuan domain untuk teknologi
+// yang kurang umum (mis. Zitadel, vendor spesifik): isinya di-inject ke
+// setiap panggilan model supaya agent tidak mengarang detail teknis.
+// Folder tidak ada = string kosong (bukan error) -- fitur opt-in pasif.
+// File ini INPUT read-only, bukan checkpoint: tidak memengaruhi resume.
+func (s *Store) LoadKnowledge() (string, error) {
+	dir := filepath.Join(s.Dir, "knowledge")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("store: read knowledge dir: %w", err)
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		n := e.Name()
+		if strings.HasSuffix(n, ".md") || strings.HasSuffix(n, ".txt") {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	var b strings.Builder
+	for _, n := range names {
+		content, err := os.ReadFile(filepath.Join(dir, n))
+		if err != nil {
+			return "", fmt.Errorf("store: read knowledge %q: %w", n, err)
+		}
+		if len(content) == 0 {
+			continue
+		}
+		fmt.Fprintf(&b, "\n\n--- file: knowledge/%s ---\n%s", n, string(content))
+	}
+	return strings.TrimSpace(b.String()), nil
 }
 
 const (

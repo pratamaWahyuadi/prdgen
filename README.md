@@ -635,6 +635,48 @@ Supaya ekspektasinya jelas -- ini yang **belum** ada solusinya:
 
 ---
 
+## Knowledge injection: teknologi yang kurang umum
+
+Kalau project lo memakai teknologi yang base knowledge AI-nya lemah
+(mis. **Zitadel**, vendor spesifik, atau internal framework), hasil
+planning bisa mengarang detail yang salah persis di bagian paling fatal.
+prdgen bisa dikasih referensi teknis lo sendiri lewat folder:
+
+```
+<project-dir>/knowledge/*.md   (atau .txt)
+```
+
+Cara pakai:
+
+```bash
+mkdir -p ./planning/knowledge
+# taruh referensi apa pun: hasil verifikasi live, spesifikasi vendor,
+# catatan gotcha, potongan dokumentasi resmi
+cp ~/my-references/zitadel-v4.md ./planning/knowledge/
+prdgen lld ./planning
+```
+
+Semua file `.md`/`.txt` di folder itu (urut nama) otomatis di-inject ke
+**setiap** panggilan model — discovery, security audit, PRD, ERD, API
+contracts, coding plan, validasi, revisi, sampai generate issues — dengan
+aturan presedensi eksplisit: **isi knowledge/ menang atas pengetahuan
+umum model**. Kalau pengetahuan training model bertentangan dengan
+referensi lo (mis. "ROPC support ada di Zitadel" padahal live-verified
+tidak ada), referensi lo yang dipakai. Detail teknis tentang teknologi itu
+yang tidak ada di referensi wajib ditandai sebagai asumsi yang perlu
+verifikasi, bukan dikarang.
+
+Saat aktif, prdgen menampilkan `📚 Knowledge injection aktif: N file
+referensi dari <project-dir>/knowledge/` di awal run. Folder ini tidak
+memengaruhi resume — dia input read-only, bisa ditambah/diubah kapan saja
+sebelum run berikutnya.
+
+Ukuran & biaya: referensi ikut terkirim di setiap panggilan, jadi jangan
+taruh dokumen 50 ribu baris — taruh bagian yang relevan saja (gotcha,
+endpoint, konfigurasi kritis) atau pecah per-topik.
+
+---
+
 ## Custom prompt tanpa rebuild
 
 Semua system prompt ada di `internal/prompts/*.txt`, di-embed ke dalam
