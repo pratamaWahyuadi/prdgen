@@ -108,6 +108,22 @@ func TestDetermineStartStage_DeepDiveDone_ResumesAtSecurity(t *testing.T) {
 	}
 }
 
+func TestDetermineStartStage_StoppedWhileAnsweringDeepDive_ResumesAtDeepDive(t *testing.T) {
+	// Celah resume yang pernah ada: user pilih "y" di gate, pertanyaan
+	// fase 2 tersimpan (01d), lalu berhenti di tengah MENJAWAB. Resume
+	// lama menaruh dia kembali di GATE -- padahal keputusan gate sudah
+	// pernah diambil. Resume yang benar: langsung ke deep-dive,
+	// pertanyaan tersimpan di-load ulang, user tinggal lanjut jawab.
+	s, _ := newTestStore(t)
+	mustSave(t, s, store.FileIdea, "ide")
+	mustSave(t, s, store.FileDiscoveryQA, "Q & A")
+	mustSave(t, s, store.FileProductBrief, "# Brief")
+	mustSave(t, s, store.FileDeepDiveQuestions, "1. Driver DB apa?")
+	if got := determineStartStage(s); got.String() != "discovery_deep" {
+		t.Errorf("stopped while answering deep-dive should resume at discovery_deep, got %s", got)
+	}
+}
+
 // --- writeDefaultsFromBrief ---
 
 func TestWriteDefaultsFromBrief_SavesYAML(t *testing.T) {

@@ -169,7 +169,7 @@ antaranya:
    tim. Jawab sejujurnya -- kalau ada yang belum kepikiran, boleh jawab
    "belum mikir", itu juga informasi yang berguna (lebih baik daripada
    sistem menebak sendiri). Dari jawaban ini disusun **Product Brief**
-   (`01b_product_brief.md`).
+   (`01c_product_brief.md`).
 2. **Gate eksplisit**: "lanjut ke deep-dive teknis, atau skip dan pakai
    default eksplisit?"
    - **Lanjut (y)** — Fase 2 menggali keputusan low-level yang berisiko
@@ -517,10 +517,10 @@ Semua tersimpan di folder project yang lo tentukan (`<folder-project>/`):
 |---|---|---|
 | `00_idea.md` | `new` | Ide mentah yang lo tulis di awal |
 | `01a_discovery_questions.md` | `new` | Pertanyaan discovery fase 1 (tersimpan sebelum lo jawab) |
-| `01_discovery_qa.md` | `new` | Pertanyaan fase 1 + jawaban lo |
-| `01b_product_brief.md` | `new` | Product Brief (ringkasan terstruktur fase 1) |
+| `01b_discovery_qa.md` | `new` | Pertanyaan fase 1 + jawaban lo |
+| `01c_product_brief.md` | `new` | Product Brief (ringkasan terstruktur fase 1) |
 | `01d_deep_dive_questions.md` | `new` | Pertanyaan deep-dive fase 2 (kalau lo pilih lanjut) |
-| `01c_deep_dive_qa.md` | `new` | Brief + pertanyaan deep-dive + jawaban lo (kalau lanjut) |
+| `01e_deep_dive_qa.md` | `new` | Brief + pertanyaan deep-dive + jawaban lo (kalau lanjut) |
 | `defaults.yaml` | `new` | Default eksplisit semua keputusan low-level, flag `[ASSUMED]` + basis (kalau skip deep-dive) |
 | `02_threat_report.md` | `new` | Threat model dari Security Auditor (ID stabil T1, T2, ...) |
 | `PRD.md` | `new` | PRD final (termasuk section 7.5 Asumsi Teknis) |

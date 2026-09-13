@@ -69,10 +69,10 @@ func (s *Store) Append(filename, line string) error {
 const (
 	FileIdea               = "00_idea.md"
 	FileDiscoveryQuestions = "01a_discovery_questions.md"
-	FileDiscoveryQA        = "01_discovery_qa.md"
-	FileProductBrief       = "01b_product_brief.md"
+	FileDiscoveryQA        = "01b_discovery_qa.md"
+	FileProductBrief       = "01c_product_brief.md"
 	FileDeepDiveQuestions  = "01d_deep_dive_questions.md"
-	FileDeepDiveQA         = "01c_deep_dive_qa.md"
+	FileDeepDiveQA         = "01e_deep_dive_qa.md"
 	FileDefaultsYAML       = "defaults.yaml"
 	FileThreatReport       = "02_threat_report.md"
 	FilePRD                = "PRD.md"

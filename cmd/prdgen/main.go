@@ -218,7 +218,7 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 			// cek apakah ide-nya sendiri sudah tersimpan, jadi user selalu
 			// diminta nulis ide ulang tiap kali resume ke stage discovery
 			// (misal karena baru selesai jawab 01a_discovery_questions.md
-			// secara manual tapi belum sempat generate 01_discovery_qa.md).
+			// secara manual tapi belum sempat generate 01b_discovery_qa.md).
 			fmt.Println("\n[idea] ditemukan 00_idea.md dari sesi sebelumnya, lanjut pakai itu.")
 		} else {
 			fmt.Println("sebelum isi ide disini brainstorming dulu dengan ai di web yang gratis,lalu gambar di excalidraw untuk visualisasi dan setelah konsepnya matang baru ke sini")
@@ -443,9 +443,13 @@ func runPRDPipeline(ctx context.Context, r *pipeline.Runner, s *store.Store, rea
 
 // determineStartStage menentukan stage mulai untuk `prdgen new` berdasarkan
 // file mana yang sudah ada. Urutan cek MENGHORMATI gate deep-dive: kalau
-// deep-dive di-skip (tidak ada 01c_deep_dive_qa.md) tapi defaults.yaml sudah
+// deep-dive di-skip (tidak ada 01e_deep_dive_qa.md) tapi defaults.yaml sudah
 // ditulis, itu tanda user melewati gate dengan jalan "skip", jadi resume
 // langsung ke security -- bukan memaksa user menjawab deep-dive lagi.
+// Kehadiran 01d_deep_dive_questions.md juga dihormati sebagai tanda user
+// sudah pernah memilih "y" di gate: kalau dia berhenti di tengah menjawab,
+// resume langsung ke deep-dive (pertanyaan tersimpan di-load ulang), bukan
+// diminta menjawab gate lagi.
 func determineStartStage(s *store.Store) pipeline.Stage {
 	if !s.IsComplete(store.FileDiscoveryQA) {
 		return pipeline.StageDiscovery
@@ -453,11 +457,14 @@ func determineStartStage(s *store.Store) pipeline.Stage {
 	if !s.IsComplete(store.FileProductBrief) {
 		return pipeline.StageDiscoveryBrief
 	}
-	if !s.IsComplete(store.FileDeepDiveQA) && !s.IsComplete(store.FileDefaultsYAML) {
-		// Belum ada jawaban deep-dive DAN belum ada defaults.yaml -> user
-		// belum melewati gate sama sekali (atau berhenti tepat di gate).
-		// Kedua file ini adalah "tanda lewat gate" karena keduanya hanya
-		// ditulis SETELAH user memilih di gate.
+	if s.IsComplete(store.FileDeepDiveQA) || s.IsComplete(store.FileDefaultsYAML) {
+		// Gate sudah dilewati (jalur manapun) -- lanjut ke stage berikutnya.
+	} else if s.IsComplete(store.FileDeepDiveQuestions) {
+		// 01d ada = user sudah pilih "y" di gate dan pertanyaan fase 2
+		// tersimpan; dia berhenti di tengah menjawab. Resume langsung ke
+		// deep-dive, JANGAN minta keputusan gate ulang.
+		return pipeline.StageDiscoveryDeep
+	} else {
 		return pipeline.StageDiscoveryGate
 	}
 	if !s.IsComplete(store.FileThreatReport) {
