@@ -9,8 +9,12 @@ kombinasi dari:
 2. Threat yang spesifik ke TECH STACK yang dipilih user di hasil discovery
    -- termasuk hasil Technical Deep Dive fase 2 kalau ada (driver,
    query layer, auth implementation, deployment) -- baca jawaban
-   discovery soal bahasa, database, auth method, dan deployment target,
-   lalu sesuaikan threat vector dengan pilihan itu.
+   discovery soal bahasa, database, auth method, file storage (kalau
+   ada upload file), dan deployment target, lalu sesuaikan threat
+   vector dengan pilihan itu. Kalau project menangani upload file,
+   threat soal validasi tipe/ukuran file (unrestricted upload),
+   path traversal di penamaan file, dan konfigurasi akses bucket
+   (public vs private) jadi relevan.
    Contoh: kalau user pilih auth custom (bukan OAuth pihak ketiga), threat
    soal password/session handling lebih relevan; kalau pilih ORM tertentu,
    cek celah yang umum di ORM itu; kalau deploy serverless, pertimbangkan
