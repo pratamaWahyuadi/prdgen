@@ -97,17 +97,26 @@ func ValidateDraft(issues []Issue, codingPlan string) []ValidationError {
 
 // touchesSharedInfra mendeteksi apakah body issue jelas-jelas menyentuh
 // komponen shared-instance (DB/cache/queue/HTTP client eksternal).
-// Threshold 2 keyword match: kata tunggal seperti "query" atau "cache"
-// terlalu sering muncul dalam konteks non-infra (mis. "cache" di kalimat
-// soal HTTP header browser), satu match saja bikin warning banyak noise
-// yang lama-lama diabaikan user -- alarm fatigue yang justru mematikan
-// fungsi validator. Dua keyword BERBEDA (mis. "postgres"+"migration",
-// "redis"+"connection") jauh lebih kuat menandakan issue benar-benar
-// menyentuh infra shared-instance.
+//
+// TWO-TIER (bukan satu threshold flat):
+// - Kata KUAT (postgres, migration, sqlc, dsn, dst.) sudah spesifik
+//   dengan sendirinya menandakan infra -- SATU match cukup memicu rule.
+//   Contoh nyata yang harus tetap tertangkap: "tambah migration untuk
+//   tabel users" (satu keyword kuat: migration).
+// - Kata AMBIGU (pool, connection, repository) sering muncul di konteks
+//   non-infra ("connection pool" di config HTTP client, "repository
+//   pattern" di diskusi arsitektur) -- butuh minimal DUA match BERBEDA
+//   sebelum memicu, supaya satu kata generik tidak bikin noise warning
+//   yang lama-lama diabaikan user (alarm fatigue).
 func touchesSharedInfra(body string) bool {
 	lower := strings.ToLower(body)
+	for _, kw := range strongInfraKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
 	matches := 0
-	for _, kw := range sharedInfraKeywords {
+	for _, kw := range ambiguousInfraKeywords {
 		if strings.Contains(lower, kw) {
 			matches++
 		}
@@ -115,13 +124,16 @@ func touchesSharedInfra(body string) bool {
 	return matches >= 2
 }
 
-// sharedInfraKeywords: kata kunci deteksi infra shared-instance. Perlu
-// minimal 2 keyword BERBEDA yang match (lihat touchesSharedInfra).
-var sharedInfraKeywords = []string{
-	"database", "postgres", "mysql", "sqlite", "migration",
-	"redis", "kafka", "rabbitmq", "connection pool", "pool",
-	"sqlc", "gorm", "prisma", "repository", "dsn",
+// strongInfraKeywords: satu match sudah cukup -- kata-kata ini hampir
+// pasti hanya muncul saat issue benar-benar menyentuh infra shared-instance.
+var strongInfraKeywords = []string{
+	"postgres", "mysql", "sqlite", "redis", "kafka", "rabbitmq",
+	"sqlc", "gorm", "prisma", "dsn", "migration", "database",
 }
+
+// ambiguousInfraKeywords: butuh pasangan (2 match berbeda) -- maknanya
+// bergantung konteks, satu kata sendirian tidak cukup meyakinkan.
+var ambiguousInfraKeywords = []string{"pool", "connection", "repository"}
 
 // planPhasePattern: mencocokkan baris judul fase di coding plan, contoh:
 //   "## Fase 1: Setup & DB Migrations"

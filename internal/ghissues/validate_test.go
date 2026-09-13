@@ -88,16 +88,64 @@ func TestValidateDraft_EmptyPlan_NoRulesFire(t *testing.T) {
 func TestValidateDraft_SingleKeywordDoesNotTriggerInfraRule(t *testing.T) {
 	t.Parallel()
 
-	// Anti alarm-fatigue: kata tunggal ("cache", "query") dalam konteks
-	// non-infra TIDAK boleh memicu rule db-conn-source-cited. Issue ini
-	// cuma soal HTTP handler biasa -- kalau warning muncul, lama-lama user
-	// abaikan semua warning validator.
+	// Anti alarm-fatigue: satu kata AMBIGU sendirian TIDAK memicu rule.
+	plan := "# Fase 1: Setup\n\nSetup Koneksi Database -- pool di `internal/db/db.go`."
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"cache header HTTP (kata generik lama)", "perbaiki cache header HTTP response di handler publik"},
+		{"satu kata ambigu: pool", "tambahkan pool worker untuk background job image resize"},
+		{"satu kata ambigu: connection", "tutup connection websocket saat client disconnect"},
+		{"satu kata ambigu: repository", "refactor repository pattern di layer service"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			issues := []Issue{{Title: "X", Body: c.body, Phase: "Fase 1: Setup"}}
+			if errs := ValidateDraft(issues, plan); len(errs) != 0 {
+				t.Fatalf("expected no findings, got: %v", errs)
+			}
+		})
+	}
+}
+
+func TestValidateDraft_SingleStrongKeywordTriggersInfraRule(t *testing.T) {
+	t.Parallel()
+
+	// Kata KUAT satu sendirian cukup -- kasus nyata dari review: "tambah
+	// migration untuk tabel users" HANYA punya satu keyword spesifik
+	// (migration), dan justru itu contoh valid yang harus ditangkap.
+	plan := "# Fase 1: Setup\n\nSetup Koneksi Database -- pool di `internal/db/db.go`."
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"migration saja", "tambah migration untuk tabel users"},
+		{"postgres saja", "setup schema awal di postgres"},
+		{"sqlc saja", "generate query sqlc untuk domain events"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			issues := []Issue{{Title: "X", Body: c.body, Phase: "Fase 1: Setup"}}
+			errs := ValidateDraft(issues, plan)
+			if len(errs) != 1 || errs[0].Rule != "db-conn-source-cited" {
+				t.Fatalf("expected 1 db-conn-source-cited finding, got: %v", errs)
+			}
+		})
+	}
+}
+
+func TestValidateDraft_TwoAmbiguousKeywordsTriggerInfraRule(t *testing.T) {
+	t.Parallel()
+
+	// Dua kata ambigu BERBEDA di body yang sama = sinyal infra kuat.
 	plan := "# Fase 1: Setup\n\nSetup Koneksi Database -- pool di `internal/db/db.go`."
 	issues := []Issue{
-		{Title: "UI cleanup", Body: "perbaiki cache header HTTP response di handler publik", Phase: "Fase 1: Setup"},
+		{Title: "X", Body: "implement repository dengan connection management per tabel", Phase: "Fase 1: Setup"},
 	}
-	if errs := ValidateDraft(issues, plan); len(errs) != 0 {
-		t.Fatalf("expected no findings for single generic keyword, got: %v", errs)
+	errs := ValidateDraft(issues, plan)
+	if len(errs) != 1 || errs[0].Rule != "db-conn-source-cited" {
+		t.Fatalf("expected 1 db-conn-source-cited finding, got: %v", errs)
 	}
 }
 
