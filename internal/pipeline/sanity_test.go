@@ -140,3 +140,42 @@ func TestSanityCheck_GoodDocs_NoFindings(t *testing.T) {
 		t.Errorf("expected no findings for good schema, got: %v", findings)
 	}
 }
+
+func TestSanityCheck_PRDMissingRequiredSections(t *testing.T) {
+	// PRD tanpa tiga section kontrak (driver, instance terbagi, asumsi
+	// teknis) -> 3 temuan, masing-masing menyebut section yang hilang.
+	doc := "# PRD Aplikasi\n\n## Overview\nAplikasi todo list sederhana.\n\n## Personas\nUser biasa.\n\nSelesai dan tuntas."
+	findings := SanityCheck(doc, DocPRD)
+	if len(findings) != 3 {
+		t.Fatalf("expected 3 findings (missing driver/instance/asumsi sections), got %d: %v", len(findings), findings)
+	}
+	var driver, shared, asumsi bool
+	for _, f := range findings {
+		if strings.Contains(f, "Koneksi & Driver Database") {
+			driver = true
+		}
+		if strings.Contains(f, "Instance Terbagi Lain") {
+			shared = true
+		}
+		if strings.Contains(f, "Asumsi Teknis") {
+			asumsi = true
+		}
+	}
+	if !driver || !shared || !asumsi {
+		t.Errorf("expected all 3 specific section findings, got: %v", findings)
+	}
+}
+
+func TestSanityCheck_PRDAllSectionsPresent(t *testing.T) {
+	doc := "# PRD\n\n" +
+		"## 7. Tech Stack & Justifikasi\n\n### Koneksi & Driver Database\npgx/v5 native pool.\n\n" +
+		"### Instance Terbagi Lain\nredis: go-redis v9 single client.\n\n" +
+		"## 7.5 Asumsi Teknis\n| Keputusan | Nilai | Status | Basis |\n|---|---|---|---|\n| driver | pgx/v5 | [ASSUMED] | default umum |\n\nSelesai."
+	findings := SanityCheck(doc, DocPRD)
+	// Section lengkap -> tidak boleh ada temuan dari checkPRDRequiredSections.
+	for _, f := range findings {
+		if strings.Contains(f, "Koneksi & Driver") || strings.Contains(f, "Instance Terbagi") || strings.Contains(f, "Asumsi Teknis") {
+			t.Errorf("unexpected section-missing finding while all sections present: %s", f)
+		}
+	}
+}

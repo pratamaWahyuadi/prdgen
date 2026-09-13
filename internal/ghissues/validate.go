@@ -44,27 +44,35 @@ func ValidateDraft(issues []Issue, codingPlan string) []ValidationError {
 	knownPhases := extractPlanPhases(codingPlan)
 	connFiles := extractConnectionSourceFiles(codingPlan)
 
+	// Normalisasi nama fase sekali sebelum loop: heading plan dan field
+	// phase issue dibandingkan dalam bentuk ternormalisasi (lowercase,
+	// whitespace collapse) supaya perbedaan kecil spasi/tanda baca dari
+	// LLM tidak memicu warning palsu. Pesan error tetap menampilkan
+	// teks asli biar user mudah mengenali.
+	normPhases := map[string]bool{}
+	for p := range knownPhases {
+		normPhases[normalizePhase(p)] = true
+	}
+
 	for i, iss := range issues {
 		num := i + 1
 
-		// Rule 1: "phase" issue HARUS persis salah satu nama fase yang ada di
-		// coding plan (diambil verbatim, bukan parafrase). Ini nyegah agent
-		// issues mengarang urutan/label fase sendiri -- kalau fase tidak
-		// dikenal, urutan pengerjaan (phase-1, phase-2, ...) jadi ngaco dan
-		// agent coding bingung issue mana dulu.
-		if len(knownPhases) > 0 {
-			if !knownPhases[iss.Phase] {
-				suggestion := ""
-				if len(knownPhases) > 0 {
-					suggestion = fmt.Sprintf(" Fase yang dikenal dari plan: %s.", strings.Join(sortedKeys(knownPhases), ", "))
-				}
-				errs = append(errs, ValidationError{
-					Issue: num,
-					Rule:  "phase-matches-plan",
-					Msg: fmt.Sprintf("field phase=%q tidak persis sama dengan nama fase manapun di Coding Plan.%s",
-						iss.Phase, suggestion),
-				})
-			}
+		// Rule 1: "phase" issue HARUS sama dengan salah satu nama fase yang
+		// ada di coding plan. Dibandingkan TERNORMALISASI (case-insensitive,
+		// whitespace collapse) -- verbatim strict terlalu rapuh terhadap
+		// variasi kecil output LLM, tapi makna "fase yang sama" tetap
+		// terjaga. Ini nyegah agent issues mengarang urutan/label fase
+		// sendiri -- kalau fase tidak dikenal, urutan pengerjaan
+		// (phase-1, phase-2, ...) jadi ngaco dan agent coding bingung
+		// issue mana dulu.
+		if len(normPhases) > 0 && !normPhases[normalizePhase(iss.Phase)] {
+			suggestion := fmt.Sprintf(" Fase yang dikenal dari plan: %s.", strings.Join(sortedKeys(knownPhases), ", "))
+			errs = append(errs, ValidationError{
+				Issue: num,
+				Rule:  "phase-matches-plan",
+				Msg: fmt.Sprintf("field phase=%q tidak cocok dengan nama fase manapun di Coding Plan (dibandingkan case-insensitive, whitespace di-collapse).%s",
+					iss.Phase, suggestion),
+			})
 		}
 
 		// Rule 2: issue yang menyentuh database/cache/queue WAJIB menyebut
@@ -89,14 +97,30 @@ func ValidateDraft(issues []Issue, codingPlan string) []ValidationError {
 
 // touchesSharedInfra mendeteksi apakah body issue jelas-jelas menyentuh
 // komponen shared-instance (DB/cache/queue/HTTP client eksternal).
+// Threshold 2 keyword match: kata tunggal seperti "query" atau "cache"
+// terlalu sering muncul dalam konteks non-infra (mis. "cache" di kalimat
+// soal HTTP header browser), satu match saja bikin warning banyak noise
+// yang lama-lama diabaikan user -- alarm fatigue yang justru mematikan
+// fungsi validator. Dua keyword BERBEDA (mis. "postgres"+"migration",
+// "redis"+"connection") jauh lebih kuat menandakan issue benar-benar
+// menyentuh infra shared-instance.
 func touchesSharedInfra(body string) bool {
 	lower := strings.ToLower(body)
-	for _, kw := range []string{"database", "db ", "postgres", "mysql", "sqlite", "migration", "sql", "redis", "cache", "queue", "kafka", "rabbitmq", "pool", "connection", "repository", "query"} {
+	matches := 0
+	for _, kw := range sharedInfraKeywords {
 		if strings.Contains(lower, kw) {
-			return true
+			matches++
 		}
 	}
-	return false
+	return matches >= 2
+}
+
+// sharedInfraKeywords: kata kunci deteksi infra shared-instance. Perlu
+// minimal 2 keyword BERBEDA yang match (lihat touchesSharedInfra).
+var sharedInfraKeywords = []string{
+	"database", "postgres", "mysql", "sqlite", "migration",
+	"redis", "kafka", "rabbitmq", "connection pool", "pool",
+	"sqlc", "gorm", "prisma", "repository", "dsn",
 }
 
 // planPhasePattern: mencocokkan baris judul fase di coding plan, contoh:
@@ -167,6 +191,17 @@ func mentionsAnyFile(body string, files map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+// normalizePhase menyeragamkan nama fase sebelum dibandingkan: lowercase,
+// collapse semua whitespace beruntun jadi satu spasi, trim. Tanda baca
+// (":" vs "—" vs "-") sengaja TIDAK dinormalisasi penuh -- dua fase yang
+// beda hanya tanda baca masih layap dicek manual, karena bisa jadi dua
+// fase berbeda yang kebetulan mirip; spasi/case yang beda hampir pasti
+// cuma variasi formatting dari LLM.
+func normalizePhase(s string) string {
+	lower := strings.ToLower(strings.TrimSpace(s))
+	return strings.Join(strings.Fields(lower), " ")
 }
 
 // sortedKeys mengembalikan keys map sebagai slice terurut (untuk pesan error

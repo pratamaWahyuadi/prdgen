@@ -22,7 +22,7 @@ Struktur wajib Product Brief:
     keputusan teknis di fase berikutnya, jadi jangan diringkas sampai hilang.
 
 Aturan:
-- Setiap baris di Product Brief HARUS berbasisar jawaban user. Jawaban
+- Setiap baris di Product Brief HARUS berbasis jawaban user. Jawaban
   "belum kepikiran" jadi item di bagian "Open Questions" di akhir brief,
   jangan diisi tebakan.
 - Jangan tambahkan opsi, rekomendasi, atau detail teknis low-level

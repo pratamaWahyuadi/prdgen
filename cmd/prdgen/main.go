@@ -473,22 +473,29 @@ func determineStartStage(s *store.Store) pipeline.Stage {
 }
 
 // askDeepDiveChoice menanyakan gate eksplisit antara fase 1 (high-level) dan
-// fase 2 (deep-dive teknis). Return "y"/"n"/"q" (q = berhenti).
+// fase 2 (deep-dive teknis). Input tak dikenal/salah ketik di-re-prompt
+// (maksimal 3x) -- JANGAN langsung abort: membatalkan seluruh run hanya
+// karena user salah ketik itu UX yang jauh lebih buruk daripada nanya ulang.
+// Return "y"/"n"/"q" (q = berhenti, hanya kalau user eksplisit nulis q).
 func askDeepDiveChoice(reader *bufio.Reader) string {
+	const maxAttempts = 3
 	fmt.Println("\nMau lanjut ke deep-dive teknis (driver, connection pool, query layer,")
 	fmt.Print("migration tool, cache/MQ client, config, testing, CI/CD, struktur folder)? (y=lanjut, n=skip & pakai default eksplisit, q=berhenti): ")
-	line, _ := reader.ReadString('\n')
-	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "y", "yes":
-		return "y"
-	case "n", "no":
-		return "n"
-	case "q", "quit":
-		return "q"
-	default:
-		// Input tidak dikenal: anggap berhenti, lebih aman daripada
-		// meneruskan user ke deep-dive yang tidak mereka pilih.
-		return "q"
+	for attempt := 1; ; attempt++ {
+		line, _ := reader.ReadString('\n')
+		switch strings.ToLower(strings.TrimSpace(line)) {
+		case "y", "yes":
+			return "y"
+		case "n", "no":
+			return "n"
+		case "q", "quit":
+			return "q"
+		}
+		if attempt >= maxAttempts {
+			fmt.Println("Input tidak dikenal 3x -- berhenti demi aman (tidak ada pilihan yang diambil tanpa persetujuan).")
+			return "q"
+		}
+		fmt.Printf("Pilihan tidak dikenal (%d/%d). Ketik y=lanjut, n=skip & pakai default eksplisit, q=berhenti: ", attempt, maxAttempts)
 	}
 }
 

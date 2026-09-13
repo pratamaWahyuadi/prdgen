@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed discovery.txt discovery_brief.txt discovery_deep.txt defaults_gen.txt security.txt prd.txt prd_consistency.txt lld_erd.txt lld_api.txt lld_plan.txt lld_consistency.txt gh_issues.txt gh_issue_revise.txt document_revise.txt defaults.yaml
+//go:embed discovery.txt discovery_brief.txt discovery_deep.txt defaults_gen.txt security.txt prd.txt prd_consistency.txt lld_erd.txt lld_api.txt lld_plan.txt lld_consistency.txt gh_issues.txt gh_issue_revise.txt document_revise.txt
 var embedded embed.FS
 
 type Name string

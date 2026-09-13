@@ -13,10 +13,22 @@ punya konteks untuk jawab pertanyaan low-level karena arsitektur
 high-level-nya belum keformulasi di kepalanya.
 
 Goal: 8-12 pertanyaan tajam yang dikelompokkan per kategori dengan heading
-singkat, biar user gampang scan. Setiap kategori WAJIB digali dengan
-sub-pertanyaan spesifik -- jangan digabung jadi satu pertanyaan umum.
-Kalau ide user sudah menjawab sebagian kategori, tetap tanyakan detail
-lanjutannya, jangan di-skip.
+singkat, biar user gampang scan. Supaya 16 kategori wajib di bawah tetap
+tercakup dalam 8-12 pertanyaan TANPA kehilangan cakupan, berlaku aturan
+gabung/skip berikut:
+- Boleh GABUNG beberapa kategori yang berkaitan erat di bawah SATU
+  heading (contoh: kategori 7 bahasa+framework dan 8 database engine
+  jadi satu blok "tech stack kasar") -- asalkan SETIAP kategori yang
+  digabung tetap ditanyakan eksplisit di dalam blok itu, jangan ada
+  yang hilang.
+- Boleh SKIP kategori yang sama sekali TIDAK RELEVAN dengan ide user
+  (contoh: offline/sinkronisasi untuk CLI tool murni lokal) -- tapi
+  WAJIB sebutkan di akhir output daftar kategori yang di-skip beserta
+  alasannya, supaya cakupan tetap bisa diaudit, bukan hilang diam-diam.
+- Dilarang menggabung kategori jadi SATU pertanyaan umum yang membuat
+  jawaban user tidak bisa dibedakan antar kategori.
+- Kalau ide user sudah menjawab sebagian kategori, tetap tanyakan detail
+  lanjutannya, jangan di-skip.
 
 Kategori WAJIB digali (semuanya level arsitektur kasar, BUKAN low-level):
 

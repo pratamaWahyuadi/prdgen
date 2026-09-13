@@ -45,7 +45,7 @@ Structure:
      low-level dari jawaban deep-dive user, kolom: Keputusan | Nilai |
      Status (user-confirmed / [ASSUMED]) | Basis.
    - Kalau user SKIP deep-dive: kutip VERBATIM seluruh isi defaults.yaml
-     ke section ini dalam format tabel, dan setiap nilai WAJIB dibareti
+     ke section ini dalam format tabel, dan setiap nilai WAJIB diberi
      flag [ASSUMED] -- tidak ada satu pun nilai default yang boleh
      disamarkan sebagai keputusan user.
    - Tambahkan kalimat penutup section ini PERSIS: "Coding agent yang

@@ -46,6 +46,8 @@ func SanityCheck(doc string, kind DocKind) []string {
 	}
 
 	switch kind {
+	case DocPRD:
+		findings = append(findings, checkPRDRequiredSections(trimmed)...)
 	case DocSchema:
 		findings = append(findings, checkMermaid(trimmed)...)
 		findings = append(findings, checkTableDetail(trimmed)...)
@@ -53,6 +55,35 @@ func SanityCheck(doc string, kind DocKind) []string {
 		findings = append(findings, checkEndpoints(trimmed)...)
 	case DocPlan:
 		findings = append(findings, checkPlanPhases(trimmed)...)
+	}
+	return findings
+}
+
+// prdSectionPattern mencocokkan heading/penyebutan section wajib PRD secara
+// longgar: heading markdown "## 7.5 Asumsi Teknis" maupun penyebutan inline
+// "section 7.5 Asumsi Teknis". Case-insensitive, spasi fleksibel.
+var (
+	prdAssumptionPattern = regexp.MustCompile(`(?i)(?:^#{1,6}.*|#?\s*section\s*)?\d?\.?\s*7\.?5?\s*[-–—:]?\s*asumsi\s+teknis`)
+	prdSharedInstPattern = regexp.MustCompile(`(?i)instance\s+terbagi\s+lain`)
+	prdDriverPattern     = regexp.MustCompile(`(?i)koneksi\s*&?\s*driver\s+database`)
+)
+
+// checkPRDRequiredSections: prompt prd.txt kini mewajibkan tiga section
+// kontrak yang akan dikutip turun-temurun oleh ERD/plan/issues (driver &
+// pool, instance terbagi lain, asumsi teknis [ASSUMED]). Kalau LLM lupa
+// menulisnya, tidak ada downstream yang menangkapnya secara mekanis --
+// persis kelas gap yang bikin sanity.go dibuat. Cek di sini supaya
+// warning muncul SEBELUM dokumen dikonfirmasi user.
+func checkPRDRequiredSections(doc string) []string {
+	var findings []string
+	if !prdDriverPattern.MatchString(doc) {
+		findings = append(findings, "tidak ditemukan sub-section 'Koneksi & Driver Database' -- wajib ada di PRD karena dikutip verbatim oleh ERD/plan/issues (anti double-pool)")
+	}
+	if !prdSharedInstPattern.MatchString(doc) {
+		findings = append(findings, "tidak ditemukan sub-section 'Instance Terbagi Lain' (cache/MQ/HTTP client/migration tool) -- wajib ada supaya agent LLD tidak menebak instance sendiri")
+	}
+	if !prdAssumptionPattern.MatchString(doc) {
+		findings = append(findings, "tidak ditemukan section '7.5 Asumsi Teknis' -- wajib ada berisi tabel keputusan low-level + flag [ASSUMED] (kontrak untuk coding agent)")
 	}
 	return findings
 }

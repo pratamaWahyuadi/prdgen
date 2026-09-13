@@ -48,9 +48,11 @@ func TestValidateDraft_DBWithoutConnSource(t *testing.T) {
 
 	// Plan mengunci file sumber koneksi `internal/db/db.go`.
 	plan := "# Fase 1: Setup & DB Migrations\n\nStep: Setup Koneksi Database (Single Source of Truth) -- buat pool di `internal/db/db.go` (pgx/v5)."
+	// Body menyentuh database tapi tidak menyebut file koneksi -> temuan.
+	// (Body pakai 2+ keyword infra -- "repository"+"postgres" -- sesuai
+	// threshold touchesSharedInfra.)
 	issues := []Issue{
-		// Body menyentuh database tapi tidak menyebut file koneksi -> temuan.
-		{Title: "Repo users", Body: "buat repository untuk tabel users dengan query SQL", Phase: "Fase 1: Setup & DB Migrations"},
+		{Title: "Repo users", Body: "buat repository untuk tabel users di postgres dengan query SQL", Phase: "Fase 1: Setup & DB Migrations"},
 		// Body menyebut file koneksi -> tidak ada temuan.
 		{Title: "Repo events", Body: "repository events, reuse pool dari internal/db/db.go", Phase: "Fase 1: Setup & DB Migrations"},
 	}
@@ -80,5 +82,45 @@ func TestValidateDraft_EmptyPlan_NoRulesFire(t *testing.T) {
 	}
 	if errs := ValidateDraft(issues, ""); len(errs) != 0 {
 		t.Fatalf("expected no findings with empty plan, got: %v", errs)
+	}
+}
+
+func TestValidateDraft_SingleKeywordDoesNotTriggerInfraRule(t *testing.T) {
+	t.Parallel()
+
+	// Anti alarm-fatigue: kata tunggal ("cache", "query") dalam konteks
+	// non-infra TIDAK boleh memicu rule db-conn-source-cited. Issue ini
+	// cuma soal HTTP handler biasa -- kalau warning muncul, lama-lama user
+	// abaikan semua warning validator.
+	plan := "# Fase 1: Setup\n\nSetup Koneksi Database -- pool di `internal/db/db.go`."
+	issues := []Issue{
+		{Title: "UI cleanup", Body: "perbaiki cache header HTTP response di handler publik", Phase: "Fase 1: Setup"},
+	}
+	if errs := ValidateDraft(issues, plan); len(errs) != 0 {
+		t.Fatalf("expected no findings for single generic keyword, got: %v", errs)
+	}
+}
+
+func TestValidateDraft_PhaseMatchIsNormalizationTolerant(t *testing.T) {
+	t.Parallel()
+
+	// Perbedaan kecil spasi/case dari LLM TIDAK boleh memicu warning:
+	// heading plan "## Fase 1: Setup & DB Migrations" vs issue phase
+	// "Fase 1:  setup & db migrations" (spasi ganda + lowercase).
+	plan := "## Fase 1: Setup & DB Migrations\nsetup db"
+	issues := []Issue{
+		{Title: "A", Body: "setup", Phase: "Fase 1:  setup & db migrations"},
+	}
+	if errs := ValidateDraft(issues, plan); len(errs) != 0 {
+		t.Fatalf("expected no findings for whitespace/case variation, got: %v", errs)
+	}
+
+	// Tapi fase yang benar-benar beda tetap kena.
+	issues = []Issue{
+		{Title: "B", Body: "halo", Phase: "Fase 9: Karangan"},
+	}
+	errs := ValidateDraft(issues, plan)
+	if len(errs) != 1 || errs[0].Rule != "phase-matches-plan" {
+		t.Fatalf("expected 1 phase-matches-plan finding for unknown phase, got: %v", errs)
 	}
 }
